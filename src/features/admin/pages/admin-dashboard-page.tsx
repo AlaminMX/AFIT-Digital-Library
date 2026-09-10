@@ -109,12 +109,23 @@ export function AdminDashboardPage() {
   const [newBookAuthor, setNewBookAuthor] = useState("");
   const [newBookDeptId, setNewBookDeptId] = useState("");
   const [newBookDesc, setNewBookDesc] = useState("");
+  const [newBookIsbn, setNewBookIsbn] = useState("");
+  const [newBookPublisher, setNewBookPublisher] = useState("AFIT Academic Press");
+  const [newBookYear, setNewBookYear] = useState(String(new Date().getFullYear()));
+  const [newBookEdition, setNewBookEdition] = useState("1st");
+  const [newBookCategory, setNewBookCategory] = useState("Textbook");
   const [newBookFile, setNewBookFile] = useState<File | null>(null);
   const [bookFileInputKey, setBookFileInputKey] = useState(0);
 
   const [newJournalTitle, setNewJournalTitle] = useState("");
   const [newJournalDeptId, setNewJournalDeptId] = useState("");
   const [newJournalDesc, setNewJournalDesc] = useState("");
+  const [newJournalPublisher, setNewJournalPublisher] = useState("AFIT Research");
+  const [newJournalIssn, setNewJournalIssn] = useState("");
+  const [newJournalVolume, setNewJournalVolume] = useState("");
+  const [newJournalIssue, setNewJournalIssue] = useState("");
+  const [newJournalDate, setNewJournalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newJournalCategory, setNewJournalCategory] = useState("Journal");
   const [newJournalFile, setNewJournalFile] = useState<File | null>(null);
   const [journalFileInputKey, setJournalFileInputKey] = useState(0);
 
@@ -265,6 +276,11 @@ export function AdminDashboardPage() {
     setNewBookAuthor("");
     setNewBookDeptId(departments[0]?.id || "");
     setNewBookDesc("");
+    setNewBookIsbn("");
+    setNewBookPublisher("AFIT Academic Press");
+    setNewBookYear(String(new Date().getFullYear()));
+    setNewBookEdition("1st");
+    setNewBookCategory("Textbook");
     setNewBookFile(null);
     setBookFileInputKey((k) => k + 1);
     setIsAddingBook(true);
@@ -276,6 +292,11 @@ export function AdminDashboardPage() {
     setNewBookAuthor(bk.author);
     setNewBookDeptId(bk.department_id || departments[0]?.id || "");
     setNewBookDesc(bk.description || "");
+    setNewBookIsbn(bk.isbn || "");
+    setNewBookPublisher(bk.publisher || "AFIT Academic Press");
+    setNewBookYear(bk.publication_year ? String(bk.publication_year) : String(new Date().getFullYear()));
+    setNewBookEdition(bk.edition || "1st");
+    setNewBookCategory(bk.category || "Textbook");
     setNewBookFile(null);
     setBookFileInputKey((k) => k + 1);
     setIsAddingBook(true);
@@ -287,6 +308,11 @@ export function AdminDashboardPage() {
     setNewBookTitle("");
     setNewBookAuthor("");
     setNewBookDesc("");
+    setNewBookIsbn("");
+    setNewBookPublisher("AFIT Academic Press");
+    setNewBookYear(String(new Date().getFullYear()));
+    setNewBookEdition("1st");
+    setNewBookCategory("Textbook");
     setNewBookFile(null);
     setBookFileInputKey((k) => k + 1);
   };
@@ -313,26 +339,28 @@ export function AdminDashboardPage() {
         };
       }
 
-      const basePayload: Partial<Book> = {
+      const parsedYear = parseInt(newBookYear, 10);
+
+      const payload: Partial<Book> = {
         department_id: newBookDeptId || departments[0]?.id || '',
         title: newBookTitle.trim(),
         author: newBookAuthor.trim(),
         description: newBookDesc.trim() || null,
+        isbn: newBookIsbn.trim() || null,
+        publisher: newBookPublisher.trim() || null,
+        publication_year: Number.isFinite(parsedYear) ? parsedYear : null,
+        edition: newBookEdition.trim() || null,
+        category: newBookCategory.trim() || null,
         ...(fileFields || {}),
       };
 
       if (editingBook) {
-        await updateAdminBook(editingBook.id, basePayload);
+        await updateAdminBook(editingBook.id, payload);
         flashSuccess(`"${newBookTitle.trim()}" updated.`);
       } else {
         await createAdminBook({
-          ...basePayload,
+          ...payload,
           cover_image: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=800&q=80',
-          isbn: null,
-          publisher: 'AFIT Academic Press',
-          publication_year: new Date().getFullYear(),
-          edition: '1st',
-          category: 'Textbook',
           status: 'published',
           uploaded_by: 'Administrator',
         });
@@ -367,6 +395,12 @@ export function AdminDashboardPage() {
     setNewJournalTitle("");
     setNewJournalDeptId(departments[0]?.id || "");
     setNewJournalDesc("");
+    setNewJournalPublisher("AFIT Research");
+    setNewJournalIssn("");
+    setNewJournalVolume("");
+    setNewJournalIssue("");
+    setNewJournalDate(new Date().toISOString().split('T')[0]);
+    setNewJournalCategory("Journal");
     setNewJournalFile(null);
     setJournalFileInputKey((k) => k + 1);
     setIsAddingJournal(true);
@@ -377,6 +411,12 @@ export function AdminDashboardPage() {
     setNewJournalTitle(jr.title);
     setNewJournalDeptId(jr.department_id || departments[0]?.id || "");
     setNewJournalDesc(jr.description || "");
+    setNewJournalPublisher(jr.publisher || "AFIT Research");
+    setNewJournalIssn(jr.issn || "");
+    setNewJournalVolume(jr.volume || "");
+    setNewJournalIssue(jr.issue || "");
+    setNewJournalDate(jr.publication_date || new Date().toISOString().split('T')[0]);
+    setNewJournalCategory(jr.category || "Journal");
     setNewJournalFile(null);
     setJournalFileInputKey((k) => k + 1);
     setIsAddingJournal(true);
@@ -387,6 +427,12 @@ export function AdminDashboardPage() {
     setEditingJournal(null);
     setNewJournalTitle("");
     setNewJournalDesc("");
+    setNewJournalPublisher("AFIT Research");
+    setNewJournalIssn("");
+    setNewJournalVolume("");
+    setNewJournalIssue("");
+    setNewJournalDate(new Date().toISOString().split('T')[0]);
+    setNewJournalCategory("Journal");
     setNewJournalFile(null);
     setJournalFileInputKey((k) => k + 1);
   };
@@ -411,26 +457,26 @@ export function AdminDashboardPage() {
         };
       }
 
-      const basePayload: Partial<Journal> = {
+      const payload: Partial<Journal> = {
         department_id: newJournalDeptId || departments[0]?.id || '',
         title: newJournalTitle.trim(),
         description: newJournalDesc.trim() || null,
+        publisher: newJournalPublisher.trim() || null,
+        issn: newJournalIssn.trim() || null,
+        volume: newJournalVolume.trim() || null,
+        issue: newJournalIssue.trim() || null,
+        publication_date: newJournalDate || null,
+        category: newJournalCategory.trim() || null,
         ...(fileFields || {}),
       };
 
       if (editingJournal) {
-        await updateAdminJournal(editingJournal.id, basePayload);
+        await updateAdminJournal(editingJournal.id, payload);
         flashSuccess(`"${newJournalTitle.trim()}" updated.`);
       } else {
         await createAdminJournal({
-          ...basePayload,
+          ...payload,
           cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-          publisher: 'AFIT Research',
-          issn: '2800-1111',
-          volume: 'Vol. 6',
-          issue: 'Issue 1',
-          publication_date: new Date().toISOString().split('T')[0],
-          category: 'Journal',
           status: 'published',
           uploaded_by: 'Administrator',
         });
@@ -925,6 +971,60 @@ export function AdminDashboardPage() {
                     )}
                   </div>
                 </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">ISBN</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 978-978-362-101-2"
+                      value={newBookIsbn}
+                      onChange={e => setNewBookIsbn(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Publisher</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. AFIT Academic Press"
+                      value={newBookPublisher}
+                      onChange={e => setNewBookPublisher(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Publication Year</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 2026"
+                      value={newBookYear}
+                      onChange={e => setNewBookYear(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Edition</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2nd Edition"
+                      value={newBookEdition}
+                      onChange={e => setNewBookEdition(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Category</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Machine Learning"
+                      value={newBookCategory}
+                      onChange={e => setNewBookCategory(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</label>
                   <textarea
@@ -1043,6 +1143,69 @@ export function AdminDashboardPage() {
                   {!editingJournal && !newJournalFile && (
                     <p className="mt-1 text-2xs text-amber-600">No file selected — a placeholder PDF will be used.</p>
                   )}
+                </div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Publisher</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. AFIT Research Directorate"
+                      value={newJournalPublisher}
+                      onChange={e => setNewJournalPublisher(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">ISSN</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2756-9901"
+                      value={newJournalIssn}
+                      onChange={e => setNewJournalIssn(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Volume</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Vol. 5"
+                      value={newJournalVolume}
+                      onChange={e => setNewJournalVolume(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Issue</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Issue 2"
+                      value={newJournalIssue}
+                      onChange={e => setNewJournalIssue(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Publication Date</label>
+                    <input
+                      type="date"
+                      value={newJournalDate}
+                      onChange={e => setNewJournalDate(e.target.value)}
+                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Category</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Cybersecurity"
+                    value={newJournalCategory}
+                    onChange={e => setNewJournalCategory(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Abstract</label>
