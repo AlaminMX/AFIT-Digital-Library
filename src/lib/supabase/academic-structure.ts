@@ -22,6 +22,9 @@ export interface Faculty {
 
 export interface Department extends Faculty {
   faculty_id: string;
+  color: string | null;
+  icon: string | null;
+  background_image_url: string | null;
 }
 
 export interface LandingPageAcademicStructureCounts {
@@ -55,7 +58,7 @@ export async function loadVisibleFaculties(client: AcademicStructureClient): Pro
 export async function loadVisibleDepartments(client: AcademicStructureClient): Promise<Department[]> {
   const result = (await client
     .from("departments")
-    .select("id, faculty_id, name, slug, description, display_order")
+    .select("id, faculty_id, name, slug, description, color, icon, background_image_url, display_order")
     .eq("is_visible", true)
     .order("display_order", { ascending: true })) as SupabaseResult<Department[]>;
 

@@ -61,21 +61,21 @@ using (is_visible = true);
 -- Placeholder only: AFIT must replace this structure with real institutional data before launch.
 insert into public.faculties (id, name, slug, description, display_order)
 values
-  ('a1000000-0000-4000-8000-000000000001', 'Faculty of Engineering', 'engineering', 'Placeholder faculty for engineering programmes.', 1),
-  ('a1000000-0000-4000-8000-000000000002', 'Faculty of Computing and Informatics', 'computing-and-informatics', 'Placeholder faculty for computing programmes.', 2),
-  ('a1000000-0000-4000-8000-000000000003', 'Faculty of Science', 'science', 'Placeholder faculty for science programmes.', 3),
-  ('a1000000-0000-4000-8000-000000000004', 'Faculty of Business and Management', 'business-and-management', 'Placeholder faculty for management programmes.', 4),
-  ('a1000000-0000-4000-8000-000000000005', 'Faculty of Social Sciences', 'social-sciences', 'Placeholder faculty for social science programmes.', 5);
+  ('a1000000-0000-4000-8000-000000000001', 'Faculty of Engineering', 'engineering', '[PLACEHOLDER — replace with real AFIT content] Faculty description.', 1),
+  ('a1000000-0000-4000-8000-000000000002', 'Faculty of Computing and Informatics', 'computing-and-informatics', '[PLACEHOLDER — replace with real AFIT content] Faculty description.', 2),
+  ('a1000000-0000-4000-8000-000000000003', 'Faculty of Science', 'science', '[PLACEHOLDER — replace with real AFIT content] Faculty description.', 3),
+  ('a1000000-0000-4000-8000-000000000004', 'Faculty of Business and Management', 'business-and-management', '[PLACEHOLDER — replace with real AFIT content] Faculty description.', 4),
+  ('a1000000-0000-4000-8000-000000000005', 'Faculty of Social Sciences', 'social-sciences', '[PLACEHOLDER — replace with real AFIT content] Faculty description.', 5);
 
 insert into public.departments (faculty_id, name, slug, description, display_order)
 values
-  ('a1000000-0000-4000-8000-000000000001', 'Department of Civil Engineering', 'civil-engineering', 'Placeholder department.', 1),
-  ('a1000000-0000-4000-8000-000000000001', 'Department of Electrical Engineering', 'electrical-engineering', 'Placeholder department.', 2),
-  ('a1000000-0000-4000-8000-000000000002', 'Department of Computer Science', 'computer-science', 'Placeholder department.', 1),
-  ('a1000000-0000-4000-8000-000000000002', 'Department of Information Systems', 'information-systems', 'Placeholder department.', 2),
-  ('a1000000-0000-4000-8000-000000000003', 'Department of Mathematics', 'mathematics', 'Placeholder department.', 1),
-  ('a1000000-0000-4000-8000-000000000003', 'Department of Biological Sciences', 'biological-sciences', 'Placeholder department.', 2),
-  ('a1000000-0000-4000-8000-000000000004', 'Department of Accounting', 'accounting', 'Placeholder department.', 1),
-  ('a1000000-0000-4000-8000-000000000004', 'Department of Business Administration', 'business-administration', 'Placeholder department.', 2),
-  ('a1000000-0000-4000-8000-000000000005', 'Department of Economics', 'economics', 'Placeholder department.', 1),
-  ('a1000000-0000-4000-8000-000000000005', 'Department of Sociology', 'sociology', 'Placeholder department.', 2);
+  ('a1000000-0000-4000-8000-000000000001', 'Department of Civil Engineering', 'civil-engineering', '[PLACEHOLDER — replace with real AFIT content] Department description.', 1),
+  ('a1000000-0000-4000-8000-000000000001', 'Department of Electrical Engineering', 'electrical-engineering', '[PLACEHOLDER — replace with real AFIT content] Department description.', 2),
+  ('a1000000-0000-4000-8000-000000000002', 'Department of Computer Science', 'computer-science', '[PLACEHOLDER — replace with real AFIT content] Department description.', 1),
+  ('a1000000-0000-4000-8000-000000000002', 'Department of Information Systems', 'information-systems', '[PLACEHOLDER — replace with real AFIT content] Department description.', 2),
+  ('a1000000-0000-4000-8000-000000000003', 'Department of Mathematics', 'mathematics', '[PLACEHOLDER — replace with real AFIT content] Department description.', 1),
+  ('a1000000-0000-4000-8000-000000000003', 'Department of Biological Sciences', 'biological-sciences', '[PLACEHOLDER — replace with real AFIT content] Department description.', 2),
+  ('a1000000-0000-4000-8000-000000000004', 'Department of Accounting', 'accounting', '[PLACEHOLDER — replace with real AFIT content] Department description.', 1),
+  ('a1000000-0000-4000-8000-000000000004', 'Department of Business Administration', 'business-administration', '[PLACEHOLDER — replace with real AFIT content] Department description.', 2),
+  ('a1000000-0000-4000-8000-000000000005', 'Department of Economics', 'economics', '[PLACEHOLDER — replace with real AFIT content] Department description.', 1),
+  ('a1000000-0000-4000-8000-000000000005', 'Department of Sociology', 'sociology', '[PLACEHOLDER — replace with real AFIT content] Department description.', 2);

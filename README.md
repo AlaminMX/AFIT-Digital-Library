@@ -2,9 +2,9 @@
 
 ## Data integration
 
-The landing-page totals and department directory are read from Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are supplied. The UI intentionally retains a small illustrative dataset when those values are absent so that a local preview remains useful. **Those fallback labels and values are visibly marked as placeholders in the UI and must not be treated as AFIT facts.**
+The landing-page totals and department directory are read from Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are supplied. When those values are absent, the pages show their query-failure state rather than invented directory data.
 
-Expected tables are `faculties` (`id`, `name`, `slug`) and `departments` (`id`, `faculty_id`, `name`, `slug`, `description`, optional `color`, `icon`, `background_image`). The implementation uses count-only queries for landing statistics to avoid downloading entire tables.
+Expected tables are `faculties` (`id`, `name`, `slug`, `is_visible`, `display_order`) and `departments` (`id`, `faculty_id`, `name`, `slug`, `description`, `is_visible`, `display_order`, optional `color`, `icon`, `background_image_url`). The implementation uses count-only queries for landing statistics to avoid downloading entire tables.
 
 ## Implementation decisions
 
