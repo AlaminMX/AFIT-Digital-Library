@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 
-import afitCrest from "@/assets/afit-logo.svg";
+import afitCrest from "@/assets/afit-logo.png";
 import { cn } from "@/shared/lib/utils";
 
 export function AppLayout() {
