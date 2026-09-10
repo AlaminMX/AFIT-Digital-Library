@@ -154,23 +154,6 @@ export async function getDepartments(): Promise<Department[]> {
   }
 }
 
-export async function getAllDepartmentsAdmin(): Promise<Department[]> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("departments")
-      .select("*")
-      .order("display_order", { ascending: true });
-
-    if (error || !data || data.length === 0) {
-      return MOCK_DEPARTMENTS;
-    }
-    return data as Department[];
-  } catch {
-    return MOCK_DEPARTMENTS;
-  }
-}
-
 export async function getDepartmentBySlug(slug: string): Promise<Department | null> {
   try {
     const supabase = getSupabaseClient();
