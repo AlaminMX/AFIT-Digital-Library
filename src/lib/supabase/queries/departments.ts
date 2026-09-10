@@ -2,7 +2,6 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 
 export type Department = {
   id: string;
-  faculty_id: string;
   name: string;
   slug: string;
   description: string | null;
@@ -16,7 +15,6 @@ export type Department = {
 const MOCK_DEPARTMENTS: Department[] = [
   {
     id: 'd1000000-0000-4000-8000-000000000001',
-    faculty_id: 'a1000000-0000-4000-8000-000000000002',
     name: 'Artificial Intelligence',
     slug: 'artificial-intelligence',
     description: 'Advanced machine learning, neural architectures, cognitive systems, and autonomous robotics research collections.',
@@ -28,7 +26,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000002',
-    faculty_id: 'a1000000-0000-4000-8000-000000000003',
     name: 'Biotechnology',
     slug: 'biotechnology',
     description: 'Genetic engineering, molecular biology, bio-informatics, and biomedical laboratory literature.',
@@ -40,7 +37,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000003',
-    faculty_id: 'a1000000-0000-4000-8000-000000000004',
     name: 'Business Administration',
     slug: 'business-administration',
     description: 'Strategic management, entrepreneurship, organizational behavior, and military logistics administration.',
@@ -52,7 +48,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000004',
-    faculty_id: 'a1000000-0000-4000-8000-000000000004',
     name: 'Economics',
     slug: 'economics',
     description: 'Macroeconomic policy, defense economics, econometric modeling, and resource allocation studies.',
@@ -64,7 +59,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000005',
-    faculty_id: 'a1000000-0000-4000-8000-000000000004',
     name: 'Accounting',
     slug: 'accounting',
     description: 'Financial reporting, auditing, public sector finance, and fiscal compliance journals.',
@@ -76,7 +70,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000006',
-    faculty_id: 'a1000000-0000-4000-8000-000000000001',
     name: 'Civil Engineering',
     slug: 'civil-engineering',
     description: 'Structural engineering, geotechnics, airfield pavements, and heavy infrastructure research.',
@@ -88,7 +81,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000007',
-    faculty_id: 'a1000000-0000-4000-8000-000000000001',
     name: 'Mechanical Engineering',
     slug: 'mechanical-engineering',
     description: 'Thermodynamics, fluid mechanics, machine design, and automotive propulsion systems.',
@@ -100,7 +92,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000008',
-    faculty_id: 'a1000000-0000-4000-8000-000000000001',
     name: 'Aerospace Engineering',
     slug: 'aerospace-engineering',
     description: 'Aircraft design, aerodynamics, propulsion, avionics, and space flight dynamics monographs.',
@@ -112,7 +103,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000009',
-    faculty_id: 'a1000000-0000-4000-8000-000000000001',
     name: 'Electrical and Electronics Engineering',
     slug: 'electrical-and-electronics-engineering',
     description: 'Power systems, microelectronics, control engineering, and electrical machinery publications.',
@@ -124,7 +114,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000010',
-    faculty_id: 'a1000000-0000-4000-8000-000000000002',
     name: 'Information Communication Engineering',
     slug: 'information-communication-engineering',
     description: 'Telecommunication networks, optical communications, radar signal processing, and wireless systems.',
@@ -136,7 +125,6 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
   {
     id: 'd1000000-0000-4000-8000-000000000011',
-    faculty_id: 'a1000000-0000-4000-8000-000000000002',
     name: 'Cybersecurity',
     slug: 'cybersecurity',
     description: 'Information assurance, cryptographic protocols, ethical hacking, and tactical network defense.',
