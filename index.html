@@ -3,54 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="AFIT Digital Library" />
+    <meta name="theme-color" content="#062d5d" />
+    <meta name="description" content="Explore the AFIT Digital Library." />
     <title>AFIT Digital Library</title>
-    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <main class="page-shell">
-      <nav class="site-nav" aria-label="Main navigation">
-        <a class="wordmark" href="#top" aria-label="AFIT Digital Library home">
-          <img src="/src/assets/afit-logo.svg" width="76" height="92" alt="AFIT official crest" />
-          <span><strong>AFIT</strong><small>Digital Library</small></span>
-        </a>
-        <div class="nav-links">
-          <a href="#collections">Collections</a>
-          <a href="#about">About the library</a>
-        </div>
-      </nav>
-
-      <section class="hero" id="top" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p class="eyebrow">Air Force Institute of Technology</p>
-          <h1 id="hero-title">Knowledge that <em>moves</em> us forward.</h1>
-          <p class="intro">Discover research, scholarship, and history from the AFIT community—preserved for today and made ready for tomorrow.</p>
-          <form class="search" role="search">
-            <label class="sr-only" for="site-search">Search the digital library</label>
-            <input id="site-search" type="search" placeholder="Search the collection" />
-            <button type="submit">Search <span aria-hidden="true">→</span></button>
-          </form>
-          <a class="browse-link" href="#collections">Browse all collections <span aria-hidden="true">↗</span></a>
-        </div>
-
-        <aside class="crest-panel" aria-label="Air Force Institute of Technology identity">
-          <div class="crest-glow"></div>
-          <img class="hero-crest" src="/src/assets/afit-logo.svg" width="304" height="368" alt="Official Air Force Institute of Technology crest" />
-          <p>Est. 1977</p>
-        </aside>
-      </section>
-
-      <section class="collections" id="collections" aria-labelledby="collections-title">
-        <div class="section-heading">
-          <p class="eyebrow">Explore the archive</p>
-          <h2 id="collections-title">Start with a collection.</h2>
-        </div>
-        <div class="collection-grid">
-          <a href="#theses"><span class="collection-number">01</span><h3>Theses &amp; Dissertations</h3><p>Graduate research from AFIT scholars.</p><span class="arrow">→</span></a>
-          <a href="#faculty"><span class="collection-number">02</span><h3>Faculty Publications</h3><p>Ideas and expertise from our faculty.</p><span class="arrow">→</span></a>
-          <a href="#archives"><span class="collection-number">03</span><h3>Institutional Archives</h3><p>Stories that shape our heritage.</p><span class="arrow">→</span></a>
-        </div>
-      </section>
-    </main>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
