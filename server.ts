@@ -4,6 +4,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
 import { createServer as createViteServer } from "vite";
 
 const app = express();
@@ -26,15 +27,34 @@ if (!fs.existsSync(dataDir)) {
 // Serve uploaded files statically
 app.use("/uploads", express.static(path.join(process.cwd(), "public", "uploads")));
 
-// --- IN-MEMORY SESSION & RATE-LIMITING STORE ---
-interface SessionData {
-  createdAt: number;
-  expiresAt: number;
+// --- SERVER-SIDE SUPABASE CLIENT (SERVICE ROLE) ---
+// This client uses the service role key and bypasses RLS. It must NEVER
+// run in the browser. SUPABASE_SERVICE_ROLE_KEY must NOT be prefixed with
+// VITE_ or Vite will inline it into the public client bundle.
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error(
+    "Server misconfigured: VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must both be set. " +
+    "Admin login cannot function without them."
+  );
 }
-const activeSessions = new Map<string, SessionData>();
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+});
+
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
 // Rate limiter for login: max 5 failed attempts within 15 minutes per IP
+// NOTE: this is still in-memory. On serverless/multi-instance deploys it
+// resets per cold start, so it's a soft speed bump, not a hard guarantee.
+// Flagged as a separate follow-up — not part of this fix.
 interface LoginAttemptRecord {
   attempts: number;
   lockUntil: number;
@@ -66,13 +86,18 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
-// Get admin password from environment or fallback
+// Get admin password from environment. No fallback — a hardcoded default
+// in a public repo defeats the point of authentication.
 function getAdminSecret(): string {
-  return process.env.ADMIN_PASSWORD || "afit2026";
+  const secret = process.env.ADMIN_PASSWORD;
+  if (!secret) {
+    throw new Error("ADMIN_PASSWORD environment variable is not set.");
+  }
+  return secret;
 }
 
 // --- AUTHENTICATION MIDDLEWARE ---
-export function requireAdminAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAdminAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const sessionToken = req.cookies?.afit_admin_session ||
     (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
 
@@ -81,9 +106,24 @@ export function requireAdminAuth(req: Request, res: Response, next: NextFunction
     return;
   }
 
-  const session = activeSessions.get(sessionToken);
-  if (!session || Date.now() > session.expiresAt) {
-    if (session) activeSessions.delete(sessionToken);
+  const tokenHash = hashToken(sessionToken);
+
+  const { data: session, error } = await supabaseAdmin
+    .from("admin_sessions")
+    .select("expires_at")
+    .eq("token_hash", tokenHash)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Session lookup failed:", error);
+    res.status(500).json({ error: "Session check failed." });
+    return;
+  }
+
+  if (!session || new Date(session.expires_at).getTime() < Date.now()) {
+    if (session) {
+      await supabaseAdmin.from("admin_sessions").delete().eq("token_hash", tokenHash);
+    }
     res.clearCookie("afit_admin_session");
     res.status(401).json({ error: "Unauthorized. Session expired or invalid." });
     return;
@@ -95,7 +135,7 @@ export function requireAdminAuth(req: Request, res: Response, next: NextFunction
 // --- AUTH API ENDPOINTS ---
 
 // Admin Login
-app.post("/api/admin/login", (req: Request, res: Response) => {
+app.post("/api/admin/login", async (req: Request, res: Response) => {
   const ip = getClientIp(req);
   const now = Date.now();
   const attemptRecord = loginAttempts.get(ip) || { attempts: 0, lockUntil: 0, lastAttempt: now };
@@ -115,7 +155,15 @@ app.post("/api/admin/login", (req: Request, res: Response) => {
     return;
   }
 
-  const expectedPassword = getAdminSecret();
+  let expectedPassword: string;
+  try {
+    expectedPassword = getAdminSecret();
+  } catch (err) {
+    console.error("Admin login misconfigured:", err);
+    res.status(500).json({ success: false, message: "Server is not configured for admin login." });
+    return;
+  }
+
   const isValid = safeCompare(password, expectedPassword);
 
   if (!isValid) {
@@ -137,12 +185,21 @@ app.post("/api/admin/login", (req: Request, res: Response) => {
   // Login successful: reset attempts
   loginAttempts.delete(ip);
 
-  // Generate cryptographic token
+  // Generate cryptographic token, persist only its hash in Supabase
   const token = crypto.randomBytes(32).toString("hex");
-  activeSessions.set(token, {
-    createdAt: now,
-    expiresAt: now + SESSION_TTL_MS
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(now + SESSION_TTL_MS).toISOString();
+
+  const { error: insertError } = await supabaseAdmin.from("admin_sessions").insert({
+    token_hash: tokenHash,
+    expires_at: expiresAt,
   });
+
+  if (insertError) {
+    console.error("Failed to create session:", insertError);
+    res.status(500).json({ success: false, message: "Could not start session. Please try again." });
+    return;
+  }
 
   // Set secure HttpOnly cookie
   res.cookie("afit_admin_session", token, {
@@ -161,7 +218,7 @@ app.post("/api/admin/login", (req: Request, res: Response) => {
 });
 
 // Check Session Status
-app.get("/api/admin/session", (req: Request, res: Response) => {
+app.get("/api/admin/session", async (req: Request, res: Response) => {
   const sessionToken = req.cookies?.afit_admin_session ||
     (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
 
@@ -170,9 +227,24 @@ app.get("/api/admin/session", (req: Request, res: Response) => {
     return;
   }
 
-  const session = activeSessions.get(sessionToken);
-  if (!session || Date.now() > session.expiresAt) {
-    if (session) activeSessions.delete(sessionToken);
+  const tokenHash = hashToken(sessionToken);
+
+  const { data: session, error } = await supabaseAdmin
+    .from("admin_sessions")
+    .select("expires_at")
+    .eq("token_hash", tokenHash)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Session lookup failed:", error);
+    res.json({ authenticated: false });
+    return;
+  }
+
+  if (!session || new Date(session.expires_at).getTime() < Date.now()) {
+    if (session) {
+      await supabaseAdmin.from("admin_sessions").delete().eq("token_hash", tokenHash);
+    }
     res.clearCookie("afit_admin_session");
     res.json({ authenticated: false });
     return;
@@ -182,12 +254,12 @@ app.get("/api/admin/session", (req: Request, res: Response) => {
 });
 
 // Admin Logout
-app.post("/api/admin/logout", (req: Request, res: Response) => {
+app.post("/api/admin/logout", async (req: Request, res: Response) => {
   const sessionToken = req.cookies?.afit_admin_session ||
     (req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : null);
 
   if (sessionToken) {
-    activeSessions.delete(sessionToken);
+    await supabaseAdmin.from("admin_sessions").delete().eq("token_hash", hashToken(sessionToken));
   }
 
   res.clearCookie("afit_admin_session", { path: "/" });
