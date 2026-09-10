@@ -1,173 +1,93 @@
 import {
-  Atom,
   ArrowRight,
-  BarChart3,
-  Briefcase,
-  Calculator,
-  CircuitBoard,
-  Code,
-  Construction,
-  BookOpen,
-  Network,
   RotateCw,
-  Sigma,
-  Users,
+  BookOpen,
+  Search,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { getAcademicDirectory, type AcademicDirectory, type Department, type Faculty } from "@/lib/supabase/queries/departments";
-
-const DEPARTMENT_ICONS = {
-  atom: Atom,
-  briefcase: Briefcase,
-  calculator: Calculator,
-  chart: BarChart3,
-  circuit: CircuitBoard,
-  code: Code,
-  construction: Construction,
-  network: Network,
-  sigma: Sigma,
-  users: Users,
-} satisfies Record<string, typeof BookOpen>;
+import { getDepartments, type Department } from "@/lib/supabase/queries/departments";
+import { Button } from "@/shared/ui/button";
 
 const DEFAULT_ACCENT = "#1d4ed8";
 
-function DepartmentIcon({ icon }: { icon: string | null }) {
-  const Icon = (icon && DEPARTMENT_ICONS[icon as keyof typeof DEPARTMENT_ICONS]) || BookOpen;
-  return <Icon aria-hidden="true" className="size-5" />;
-}
-
 export function DepartmentsPage() {
-  const [directory, setDirectory] = useState<AcademicDirectory | null>(null);
-  const [activeFacultyId, setActiveFacultyId] = useState("");
+  const [departments, setDepartments] = useState<Department[] | null>(null);
   const [hasError, setHasError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const loadDirectory = () => {
-    setDirectory(null);
+  const loadDepartments = () => {
+    setDepartments(null);
     setHasError(false);
-    getAcademicDirectory()
-      .then((result) => {
-        setDirectory(result);
-        setActiveFacultyId((current) => current || result.faculties[0]?.id || "");
-      })
+    getDepartments()
+      .then(setDepartments)
       .catch(() => setHasError(true));
   };
 
   useEffect(() => {
-    loadDirectory();
+    loadDepartments();
   }, []);
 
-  const departments = directory?.departments.filter((department) => department.faculty_id === activeFacultyId) ?? [];
+  const filteredDepartments = departments
+    ? departments.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase()) || (d.description && d.description.toLowerCase().includes(searchQuery.toLowerCase())))
+    : null;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-      <p className="text-sm font-semibold uppercase tracking-wider text-primary">Explore</p>
-      <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Departments</h1>
-      <p className="mt-3 max-w-xl text-muted-foreground">Choose a faculty to browse its available library collections.</p>
+    <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
+      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-wider text-primary mb-2">Academic Repository</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-primary font-serif sm:text-5xl">Departments</h1>
+          <p className="mt-3 text-lg leading-relaxed text-muted-foreground">
+            Select an institutional department to browse authorized books, research journals, and technical publications.
+          </p>
+        </div>
+        <div className="w-full md:w-80">
+          <div className="relative">
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search departments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-border bg-card pl-10 pr-4.5 py-3 text-sm text-foreground shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-primary font-sans"
+            />
+          </div>
+        </div>
+      </div>
 
       {hasError ? (
-        <DirectoryError onRetry={loadDirectory} />
-      ) : !directory ? (
+        <DirectoryError onRetry={loadDepartments} />
+      ) : !filteredDepartments ? (
         <DirectorySkeleton />
-      ) : directory.faculties.length === 0 ? (
-        <EmptyDirectory />
+      ) : filteredDepartments.length === 0 ? (
+        <EmptyDirectory query={searchQuery} />
       ) : (
-        <>
-          <FacultyTabs
-            activeFacultyId={activeFacultyId}
-            faculties={directory.faculties}
-            onChange={setActiveFacultyId}
-          />
-          {departments.length ? (
-            <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {departments.map((department) => (
-                <li key={department.id}>
-                  <DepartmentCard department={department} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <EmptyFaculty />
-          )}
-        </>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {filteredDepartments.map((department, index) => {
+            // Editorial variation: subtle height/proportion offset on alternating cards
+            const isTaller = index % 3 === 0;
+            return (
+              <DepartmentCard
+                key={department.id}
+                department={department}
+                className={isTaller ? "min-h-[380px] sm:min-h-[420px]" : "min-h-[320px] sm:min-h-[360px]"}
+              />
+            );
+          })}
+        </div>
       )}
     </section>
   );
 }
 
-function FacultyTabs({
-  activeFacultyId,
-  faculties,
-  onChange,
-}: {
-  activeFacultyId: string;
-  faculties: Faculty[];
-  onChange: (facultyId: string) => void;
-}) {
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  const focusTabAt = (index: number) => {
-    const wrapped = (index + faculties.length) % faculties.length;
-    onChange(faculties[wrapped].id);
-    tabRefs.current[wrapped]?.focus();
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    switch (event.key) {
-      case "ArrowRight":
-        event.preventDefault();
-        focusTabAt(index + 1);
-        break;
-      case "ArrowLeft":
-        event.preventDefault();
-        focusTabAt(index - 1);
-        break;
-      case "Home":
-        event.preventDefault();
-        focusTabAt(0);
-        break;
-      case "End":
-        event.preventDefault();
-        focusTabAt(faculties.length - 1);
-        break;
-      default:
-        break;
-    }
-  };
-
-  return (
-    <div aria-label="Faculties" className="mt-8 flex gap-2 overflow-x-auto pb-2" role="tablist">
-      {faculties.map((faculty, index) => {
-        const isActive = faculty.id === activeFacultyId;
-        return (
-          <button
-            aria-selected={isActive}
-            className={`shrink-0 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${isActive ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted"}`}
-            key={faculty.id}
-            onClick={() => onChange(faculty.id)}
-            onKeyDown={(event) => handleKeyDown(event, index)}
-            ref={(el) => {
-              tabRefs.current[index] = el;
-            }}
-            role="tab"
-            tabIndex={isActive ? 0 : -1}
-            type="button"
-          >
-            {faculty.name}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function DepartmentCard({ department }: { department: Department }) {
+function DepartmentCard({ department, className }: { department: Department; className?: string }) {
   const accent = department.color || DEFAULT_ACCENT;
 
   return (
     <Link
-      className="group relative flex min-h-32 flex-col justify-between overflow-hidden rounded-lg border border-border p-5 transition-colors hover:border-[var(--accent)]"
+      className={`group relative flex flex-col justify-end overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-sm transition-all hover:border-primary/60 hover:shadow-xl ${className || "min-h-[340px]"}`}
       style={{ "--accent": accent } as React.CSSProperties}
       to={`/departments/${department.slug}`}
     >
@@ -175,41 +95,66 @@ function DepartmentCard({ department }: { department: Department }) {
         <>
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-cover bg-center opacity-10 transition-opacity group-hover:opacity-15"
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
             style={{ backgroundImage: `url(${department.background_image_url})` }}
           />
-          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/40" />
+          <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/30" />
         </>
       )}
-      <div className="relative">
-        <span
-          className="inline-flex size-9 items-center justify-center rounded-md text-white"
-          style={{ backgroundColor: accent }}
-        >
-          <DepartmentIcon icon={department.icon} />
+
+      <div className="relative z-10">
+        <span className="inline-block text-xs font-bold uppercase tracking-wider text-white/90 bg-black/50 backdrop-blur-md px-3 py-1 rounded-md border border-white/20 mb-3">
+          Department Library
         </span>
-        <h2 className="mt-3 font-medium">{department.name}</h2>
-        {department.description && <p className="mt-2 text-sm leading-6 text-muted-foreground">{department.description}</p>}
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-serif group-hover:text-gold transition-colors leading-tight">
+          {department.name}
+        </h2>
+        {department.description && (
+          <p className="mt-2.5 text-sm sm:text-base leading-relaxed text-white/85 line-clamp-2 max-w-xl font-sans">
+            {department.description}
+          </p>
+        )}
+        
+        <div className="mt-6 pt-4 border-t border-white/20 flex items-center justify-between text-sm font-semibold text-white group-hover:text-gold transition-colors">
+          <span>Explore department repository</span>
+          <ArrowRight aria-hidden="true" className="size-5 transition-transform group-hover:translate-x-1.5" />
+        </div>
       </div>
-      <span className="relative mt-4 flex items-center gap-2 text-sm font-medium" style={{ color: accent }}>
-        View department <ArrowRight aria-hidden="true" className="size-4" />
-      </span>
     </Link>
   );
 }
 
 function DirectorySkeleton() {
-  return <div aria-label="Loading departments" className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <div className="h-32 animate-pulse rounded-lg bg-muted" key={index} />)}</div>;
+  return (
+    <div className="grid gap-6 sm:grid-cols-2">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div className="h-80 animate-pulse rounded-2xl bg-muted border border-border" key={index} />
+      ))}
+    </div>
+  );
 }
 
 function DirectoryError({ onRetry }: { onRetry: () => void }) {
-  return <div className="mt-8 rounded-lg border border-border p-6" role="alert"><h2 className="font-semibold">We couldn’t load the directory.</h2><p className="mt-2 text-sm text-muted-foreground">Check your Supabase configuration or connection, then try again.</p><button className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90" onClick={onRetry} type="button"><RotateCw aria-hidden="true" className="size-4" />Try again</button></div>;
+  return (
+    <div className="mt-12 rounded-2xl border border-border bg-card p-10 text-center max-w-lg mx-auto shadow-sm" role="alert">
+      <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-4">
+        <RotateCw aria-hidden="true" className="size-7" />
+      </div>
+      <h2 className="text-xl font-bold font-serif text-foreground">We couldn’t load the departments.</h2>
+      <p className="mt-2 text-base text-muted-foreground">Check your connection or credentials, then try again.</p>
+      <Button className="mt-6 gap-2 text-base px-6 py-3" onClick={onRetry} type="button">
+        <RotateCw aria-hidden="true" className="size-4" /> Try again
+      </Button>
+    </div>
+  );
 }
 
-function EmptyDirectory() {
-  return <div className="mt-8 rounded-lg border border-border p-6 text-muted-foreground"><BookOpen aria-hidden="true" className="size-6 text-primary" /><h2 className="mt-3 font-semibold text-foreground">No faculties are available yet.</h2><p className="mt-2 text-sm">Check back when the library directory is published.</p></div>;
-}
-
-function EmptyFaculty() {
-  return <div className="mt-6 rounded-lg border border-border p-6 text-muted-foreground"><BookOpen aria-hidden="true" className="size-6 text-primary" /><h2 className="mt-3 font-semibold text-foreground">No departments are available for this faculty.</h2><p className="mt-2 text-sm">Please choose another faculty or check back later.</p></div>;
+function EmptyDirectory({ query }: { query: string }) {
+  return (
+    <div className="mt-12 rounded-2xl border border-border bg-card p-12 text-center max-w-lg mx-auto">
+      <BookOpen aria-hidden="true" className="size-10 text-primary mx-auto mb-4" />
+      <h2 className="text-xl font-bold text-foreground font-serif">No departments match your search.</h2>
+      <p className="mt-2 text-base text-muted-foreground">No departments were found matching "{query}". Try searching with a different keyword.</p>
+    </div>
+  );
 }

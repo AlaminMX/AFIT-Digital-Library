@@ -1,0 +1,38 @@
+[
+  {
+    "id": "c1000000-0000-4000-8000-000000000001",
+    "title": "Aeronautics & Defense Systems Archive",
+    "description": "Access over 15,000 peer-reviewed technical reports, propulsion research, and aerospace engineering papers.",
+    "image_url": "https://images.unsplash.com/photo-1517976487502-d5966a3d92fb?auto=format&fit=crop&w=1600&q=80",
+    "cta_text": "Explore Aerospace Papers",
+    "cta_url": "/departments/aerospace-engineering",
+    "display_order": 1,
+    "is_active": true,
+    "created_at": "2026-09-09T00:00:00.000Z",
+    "updated_at": "2026-09-09T00:00:00.000Z"
+  },
+  {
+    "id": "c1000000-0000-4000-8000-000000000002",
+    "title": "Artificial Intelligence & Autonomous Robotics",
+    "description": "Cutting-edge publications in autonomous control algorithms, cyber defence analytics, and computer vision systems.",
+    "image_url": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1600&q=80",
+    "cta_text": "View AI Publications",
+    "cta_url": "/departments/artificial-intelligence",
+    "display_order": 2,
+    "is_active": true,
+    "created_at": "2026-09-09T00:00:00.000Z",
+    "updated_at": "2026-09-09T00:00:00.000Z"
+  },
+  {
+    "id": "c1000000-0000-4000-8000-000000000003",
+    "title": "National Defense Journal & Academic Proceedings",
+    "description": "Official periodicals and strategic military logistics studies published by accredited AFIT faculty boards.",
+    "image_url": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80",
+    "cta_text": "Read Periodicals",
+    "cta_url": "/departments/cyber-security",
+    "display_order": 3,
+    "is_active": true,
+    "created_at": "2026-09-09T00:00:00.000Z",
+    "updated_at": "2026-09-09T00:00:00.000Z"
+  }
+]

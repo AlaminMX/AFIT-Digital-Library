@@ -6,6 +6,9 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-gold: var(--gold);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
@@ -13,23 +16,29 @@
   --color-ring: var(--ring);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --font-sans: 'Mulish', sans-serif;
+  --font-serif: 'Philosopher', serif;
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.99 0.002 250);
   --foreground: oklch(0.18 0.02 255);
   --primary: oklch(0.33 0.08 252);
   --primary-foreground: oklch(0.98 0.01 250);
-  --muted: oklch(0.96 0.01 250);
-  --muted-foreground: oklch(0.46 0.02 255);
-  --border: oklch(0.9 0.01 250);
-  --input: oklch(0.9 0.01 250);
-  --ring: oklch(0.55 0.1 250);
+  --secondary: oklch(0.72 0.16 75);
+  --secondary-foreground: oklch(0.18 0.05 75);
+  --gold: oklch(0.72 0.16 75);
+  --muted: oklch(0.95 0.01 250);
+  --muted-foreground: oklch(0.45 0.02 255);
+  --border: oklch(0.88 0.012 250);
+  --input: oklch(0.88 0.012 250);
+  --ring: oklch(0.45 0.1 250);
   --accent: oklch(0.94 0.02 250);
   --accent-foreground: oklch(0.24 0.03 255);
 }
 
 * { border-color: var(--border); }
-html { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-body { margin: 0; min-width: 320px; }
+html { font-family: 'Mulish', sans-serif; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Philosopher', serif; }
+body { margin: 0; min-width: 320px; font-family: 'Mulish', sans-serif; }
 button, a { -webkit-tap-highlight-color: transparent; }
