@@ -1,0 +1,6 @@
+{
+  "name": "AFIT Digital Library",
+  "description": "Explore the AFIT Digital Library, research publications, and learning resources from the Air Force Institute of Technology.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
