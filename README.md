@@ -1,13 +1,26 @@
 # AFIT Digital Library
 
-## Data integration
+## Local run
 
-The landing-page totals and department directory are read from Supabase when `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are supplied. The UI intentionally retains a small illustrative dataset when those values are absent so that a local preview remains useful. **Those fallback labels and values are visibly marked as placeholders in the UI and must not be treated as AFIT facts.**
+1. Install dependencies with `npm install`.
+2. Create a `.env.local` file containing `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for a Supabase project with the supplied migration applied.
+3. Start the development server with `npm run dev`.
 
-Expected tables are `faculties` (`id`, `name`, `slug`) and `departments` (`id`, `faculty_id`, `name`, `slug`, `description`, optional `color`, `icon`, `background_image`). The implementation uses count-only queries for landing statistics to avoid downloading entire tables.
+## Supabase query path
 
-## Implementation decisions
+The browser client is created only when both environment variables are present. The active React Router pages use `src/lib/supabase/queries/departments.ts`:
 
-* Department illustrations use CSS image overlays; an unavailable image does not obscure the readable content or color identity.
-* The selector is a horizontal, scrollable tab list on narrow screens rather than a native select, so keyboard users retain a clear active faculty and can move directly to it.
-* Contact and social details are deliberately labelled placeholders, since no approved AFIT contact source was included in this repository.
+- The home page issues count-only queries for visible faculties and departments.
+- The departments page loads visible faculties and departments, ordered by `display_order`, and groups departments under the selected faculty.
+- A department URL loads one visible department by its `slug`.
+
+All queries filter `is_visible = true`.
+
+## Required schema fields
+
+- `faculties`: `id`, `name`, `slug`, `description`, `is_visible`, `display_order`.
+- `departments`: `id`, `faculty_id`, `name`, `slug`, `description`, `is_visible`, `display_order`.
+
+## Fallback behavior
+
+There is no sample-data fallback. If Supabase is not configured or a query fails, pages show an unavailable state; the department directory provides a retry action.
