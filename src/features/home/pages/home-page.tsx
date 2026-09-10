@@ -78,8 +78,10 @@ export function HomePage() {
               <span>Peer-Reviewed Publications & Theses</span>
             </div>
           </div>
+        </div>
 
-          {/* Dynamic Academic Spotlight Carousel */}
+        {/* Dynamic Academic Spotlight Carousel */}
+        <div className="mt-14 w-full">
           <HomepageCarousel />
         </div>
 

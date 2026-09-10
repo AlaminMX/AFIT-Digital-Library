@@ -5,7 +5,11 @@ import {
   FileText,
   Download,
   Calendar,
-  ExternalLink,
+  FileCode,
+  Eye,
+  Bookmark,
+  X,
+  Maximize2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -14,6 +18,7 @@ import { getDepartmentBySlug, type Department } from "@/lib/supabase/queries/dep
 import { getJournalsByDepartment, type Journal } from "@/lib/supabase/queries/library";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { AcademicLoader } from "@/shared/components/academic-loader";
 
 export function DepartmentJournalsPage() {
   const { slug = "" } = useParams();
@@ -21,6 +26,7 @@ export function DepartmentJournalsPage() {
   const [journals, setJournals] = useState<Journal[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedJournal, setSelectedJournal] = useState<Journal | null>(null);
+  const [previewTab, setPreviewTab] = useState<"both" | "preview" | "metadata">("both");
   const [savedIds, setSavedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -62,17 +68,23 @@ export function DepartmentJournalsPage() {
 
   if (!department) {
     return (
-      <div className="mx-auto max-w-4xl px-4 py-20 text-center">
-        <p className="text-muted-foreground">Loading department journals...</p>
+      <div className="mx-auto max-w-4xl px-4 py-24 text-center">
+        <AcademicLoader
+          title="Loading Department Journals"
+          subtitle="Retrieving peer-reviewed archives and research publications..."
+        />
       </div>
     );
   }
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-20">
-      <div className="mb-8">
-        <Link to={`/departments/${department.slug}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}>
-          <ArrowLeft aria-hidden="true" className="size-4" /> Back to {department.name} Hub
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        <Link to="/" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2 text-xs font-semibold shadow-2xs")}>
+          <ArrowLeft aria-hidden="true" className="size-4" /> Back to Home
+        </Link>
+        <Link to={`/departments/${department.slug}`} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-xs text-muted-foreground hover:text-foreground")}>
+          {department.name} Hub
         </Link>
       </div>
 
@@ -99,10 +111,11 @@ export function DepartmentJournalsPage() {
       </div>
 
       {!filteredJournals ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="h-72 animate-pulse rounded-2xl bg-muted border border-border" />
-          ))}
+        <div className="py-16">
+          <AcademicLoader
+            title="Searching Journal Catalog"
+            subtitle="Formatting research archives and periodical issues..."
+          />
         </div>
       ) : filteredJournals.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card p-12 text-center max-w-lg mx-auto">
@@ -113,7 +126,7 @@ export function DepartmentJournalsPage() {
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredJournals.map((journal) => (
-            <div key={journal.id} className="flex flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div key={journal.id} className="flex flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-sm hover:border-sky-400 hover:shadow-xl hover:shadow-sky-500/10 transition-all">
               <div>
                 {journal.cover_image && (
                   <div className="mb-4 h-48 w-full overflow-hidden rounded-xl bg-muted">
@@ -139,83 +152,240 @@ export function DepartmentJournalsPage() {
                 )}
               </div>
 
-              <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => toggleSaveOffline(journal)}
-                  className={cn("gap-1.5 text-xs", savedIds.includes(journal.id) && "bg-primary/10 text-primary border-primary")}
-                >
-                  <Download aria-hidden="true" className="size-3.5" />
-                  {savedIds.includes(journal.id) ? "Saved Offline" : "Save Offline"}
-                </Button>
-                <Button size="sm" className="gap-1.5" onClick={() => setSelectedJournal(journal)}>
-                  <FileText aria-hidden="true" className="size-4" /> Read Journal
-                </Button>
+              <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`/api/documents/download?type=journal&id=${journal.id}&format=pdf`}
+                    download
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-2.5 text-xs gap-1 hover:border-red-500/50 hover:bg-red-500/10")}
+                    title="Download PDF Document"
+                  >
+                    <Download aria-hidden="true" className="size-3 text-red-600" /> PDF
+                  </a>
+                  <a
+                    href={`/api/documents/download?type=journal&id=${journal.id}&format=docx`}
+                    download
+                    className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-2.5 text-xs gap-1 hover:border-blue-500/50 hover:bg-blue-500/10")}
+                    title="Download Word (.DOCX) Document"
+                  >
+                    <Download aria-hidden="true" className="size-3 text-blue-600" /> DOCX
+                  </a>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => toggleSaveOffline(journal)}
+                    className={cn("h-8 px-2 text-xs gap-1", savedIds.includes(journal.id) && "text-primary font-semibold")}
+                    title={savedIds.includes(journal.id) ? "Saved Offline" : "Save Offline"}
+                  >
+                    <Bookmark aria-hidden="true" className="size-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 text-xs font-semibold gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer"
+                    onClick={() => {
+                      setSelectedJournal(journal);
+                      setPreviewTab("both");
+                    }}
+                    title="Quick View & PDF Preview"
+                  >
+                    <Eye aria-hidden="true" className="size-3.5" /> Quick View
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Journal Preview Modal */}
+      {/* QUICK VIEW & PDF PREVIEW MODAL */}
       {selectedJournal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-4xl rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/30">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-primary">Journal Research Paper</span>
-                <h2 className="text-lg font-bold font-serif text-foreground truncate max-w-2xl">{selectedJournal.title}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-6 overflow-hidden">
+          <div className="relative w-full max-w-5xl rounded-2xl bg-card border border-border shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5 bg-muted/40">
+              <div className="min-w-0 pr-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wider text-sky-600 bg-sky-500/10 px-2 py-0.5 rounded">
+                    <Eye aria-hidden="true" className="size-3" /> Quick View
+                  </span>
+                  <span className="text-2xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded">
+                    Journal Publication
+                  </span>
+                </div>
+                <h2 className="text-base sm:text-lg font-bold font-serif text-foreground truncate mt-0.5">
+                  {selectedJournal.title}
+                </h2>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedJournal(null)}>Close</Button>
-            </div>
 
-            <div className="flex-1 p-6 overflow-y-auto space-y-6">
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="space-y-4">
-                  {selectedJournal.cover_image && (
-                    <img src={selectedJournal.cover_image} alt="" className="w-full rounded-xl object-cover shadow-sm h-60" />
-                  )}
-                  <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2 text-sm">
-                    <p><strong className="text-foreground">Publisher:</strong> {selectedJournal.publisher || 'AFIT Research'}</p>
-                    <p><strong className="text-foreground">ISSN:</strong> {selectedJournal.issn || 'N/A'}</p>
-                    <p><strong className="text-foreground">Volume:</strong> {selectedJournal.volume || 'N/A'}</p>
-                    <p><strong className="text-foreground">Issue:</strong> {selectedJournal.issue || 'N/A'}</p>
-                    <p><strong className="text-foreground">Date:</strong> {selectedJournal.publication_date || 'N/A'}</p>
-                  </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* View Mode Controls */}
+                <div className="hidden sm:inline-flex items-center rounded-lg border border-border bg-background p-0.5 text-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab("both")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer",
+                      previewTab === "both" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Split View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab("preview")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer",
+                      previewTab === "preview" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    PDF Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewTab("metadata")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer",
+                      previewTab === "metadata" ? "bg-primary text-primary-foreground shadow-2xs" : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Metadata
+                  </button>
                 </div>
 
-                <div className="md:col-span-2 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">Abstract & Overview</h3>
-                    <p className="text-sm text-foreground leading-relaxed">{selectedJournal.description || 'No abstract provided.'}</p>
-                  </div>
+                <a
+                  href={`/api/documents/download?type=journal&id=${selectedJournal.id}&format=pdf&inline=true`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-2.5 text-xs gap-1")}
+                  title="Open PDF in new tab"
+                >
+                  <Maximize2 aria-hidden="true" className="size-3.5" />
+                  <span className="hidden sm:inline">New Tab</span>
+                </a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedJournal(null)}
+                  className="h-8 w-8 p-0 rounded-lg cursor-pointer"
+                  title="Close Quick View"
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </Button>
+              </div>
+            </div>
 
-                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 space-y-4">
-                    <h3 className="text-base font-bold font-serif text-primary">Journal PDF Document</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Access the full-text peer-reviewed paper in digital PDF format.
-                    </p>
-                    <div className="flex flex-wrap gap-3">
-                      <a
-                        href={selectedJournal.file_path || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"}
-                        target="_blank"
-                        rel="noreferrer"
-                        className={cn(buttonVariants(), "gap-2")}
-                      >
-                        <ExternalLink aria-hidden="true" className="size-4" /> Open Full PDF in New Tab
-                      </a>
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className={cn(
+                "gap-6",
+                previewTab === "both" ? "grid lg:grid-cols-12" : "block"
+              )}>
+                {/* METADATA COLUMN */}
+                {(previewTab === "both" || previewTab === "metadata") && (
+                  <div className={cn("space-y-4", previewTab === "both" ? "lg:col-span-5" : "max-w-2xl mx-auto")}>
+                    <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                      {selectedJournal.cover_image && (
+                        <div className="h-44 w-full overflow-hidden rounded-lg bg-muted shadow-2xs mb-3">
+                          <img src={selectedJournal.cover_image} alt="" className="h-full w-full object-cover" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Publication Details</h3>
+                        <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                          <div>
+                            <dt className="text-muted-foreground font-medium">Publisher</dt>
+                            <dd className="font-semibold text-foreground truncate">{selectedJournal.publisher || 'AFIT Research'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground font-medium">ISSN</dt>
+                            <dd className="font-semibold text-foreground truncate">{selectedJournal.issn || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground font-medium">Volume</dt>
+                            <dd className="font-semibold text-foreground">{selectedJournal.volume || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground font-medium">Issue Number</dt>
+                            <dd className="font-semibold text-foreground">{selectedJournal.issue || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground font-medium">Publication Date</dt>
+                            <dd className="font-semibold text-foreground">{selectedJournal.publication_date || 'N/A'}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground font-medium">Review Status</dt>
+                            <dd className="font-semibold text-emerald-600">Peer-Reviewed</dd>
+                          </div>
+                        </dl>
+                      </div>
+
+                      {selectedJournal.description && (
+                        <div className="pt-3 border-t border-border">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Abstract & Overview</h4>
+                          <p className="text-xs leading-relaxed text-foreground max-h-36 overflow-y-auto">
+                            {selectedJournal.description}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Download & Offline Actions */}
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Download File Formats</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <a
+                          href={`/api/documents/download?type=journal&id=${selectedJournal.id}&format=pdf`}
+                          download
+                          className={cn(buttonVariants({ variant: "default", size: "sm" }), "justify-center gap-1.5 h-9 text-xs font-semibold shadow-xs")}
+                        >
+                          <FileText aria-hidden="true" className="size-3.5" />
+                          <span>PDF Format</span>
+                        </a>
+                        <a
+                          href={`/api/documents/download?type=journal&id=${selectedJournal.id}&format=docx`}
+                          download
+                          className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "justify-center gap-1.5 h-9 text-xs font-semibold border border-border hover:border-blue-500/50 hover:bg-blue-500/10")}
+                        >
+                          <FileCode aria-hidden="true" className="size-3.5 text-blue-600" />
+                          <span>Word (.DOCX)</span>
+                        </a>
+                      </div>
+
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => toggleSaveOffline(selectedJournal)}
-                        className="gap-2"
+                        className="w-full gap-1.5 text-xs h-8 cursor-pointer"
                       >
-                        <Download aria-hidden="true" className="size-4" />
-                        {savedIds.includes(selectedJournal.id) ? "Remove from Offline" : "Save for Offline Viewing"}
+                        <Bookmark aria-hidden="true" className="size-3.5 text-primary" />
+                        <span>{savedIds.includes(selectedJournal.id) ? "Saved to Offline Library" : "Save for Offline Access"}</span>
                       </Button>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* PDF PREVIEW COLUMN */}
+                {(previewTab === "both" || previewTab === "preview") && (
+                  <div className={cn("flex flex-col", previewTab === "both" ? "lg:col-span-7" : "w-full")}>
+                    <div className="flex items-center justify-between mb-2 text-xs font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1.5 text-foreground font-semibold">
+                        <FileText aria-hidden="true" className="size-3.5 text-red-500" />
+                        Direct Document Preview (PDF)
+                      </span>
+                      <span className="text-2xs text-muted-foreground">Embedded Reader</span>
+                    </div>
+
+                    <div className="relative rounded-xl border border-border overflow-hidden bg-muted/40 shadow-inner flex-1 min-h-[460px] sm:min-h-[560px]">
+                      <iframe
+                        src={`/api/documents/download?type=journal&id=${selectedJournal.id}&format=pdf&inline=true#toolbar=1&navpanes=0`}
+                        title={`${selectedJournal.title} PDF Document Preview`}
+                        className="w-full h-full min-h-[460px] sm:min-h-[560px] border-0 bg-card"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

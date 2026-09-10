@@ -144,10 +144,17 @@ export async function deleteAdminJournal(id: string): Promise<void> {
   await handleJsonResponse(res, "Failed to delete journal.");
 }
 
-// --- DOCUMENT UPLOAD (PDF, for books & journals) ---
-// Goes to Supabase Storage server-side — see /api/admin/upload-document.
+// --- DOCUMENT UPLOAD & BATCH PROCESSING (CONVERTED TO PDF) ---
 
-export async function uploadLibraryDocument(file: File): Promise<{ url: string; file_size: string }> {
+export interface UploadDocumentResult {
+  url: string;
+  file_size: string;
+  original_name?: string;
+  suggested_title?: string;
+  extracted_text?: string;
+}
+
+export async function uploadLibraryDocument(file: File): Promise<UploadDocumentResult> {
   const formData = new FormData();
   formData.append("document", file);
 
@@ -164,7 +171,91 @@ export async function uploadLibraryDocument(file: File): Promise<{ url: string; 
     body: formData
   });
 
-  return handleJsonResponse(res, "Failed to upload document.");
+  return handleJsonResponse<UploadDocumentResult>(res, "Failed to upload document.");
+}
+
+export interface BatchDocumentItem {
+  url: string;
+  file_size: string;
+  original_name: string;
+  suggested_title: string;
+  abstract: string;
+}
+
+export async function uploadLibraryDocuments(files: File[]): Promise<BatchDocumentItem[]> {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append("documents", file);
+  }
+
+  const headers: Record<string, string> = {};
+  const token = sessionStorage.getItem("afit_admin_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch("/api/admin/upload-documents", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: formData
+  });
+
+  const data = await handleJsonResponse<{ success: boolean; documents: BatchDocumentItem[] }>(
+    res,
+    "Failed to process batch documents."
+  );
+  return data.documents || [];
+}
+
+export async function generateAdminAbstract(params: {
+  title: string;
+  author?: string;
+  department?: string;
+  excerpt?: string;
+  type?: "book" | "journal";
+}): Promise<string> {
+  const token = sessionStorage.getItem("afit_admin_token");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch("/api/admin/generate-abstract", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify(params),
+  });
+
+  const data = await handleJsonResponse<{ success: boolean; abstract: string }>(
+    res,
+    "Failed to auto-generate abstract."
+  );
+  return data.abstract;
+}
+
+export async function uploadAdminImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const headers: Record<string, string> = {};
+  const token = sessionStorage.getItem("afit_admin_token");
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetch("/api/admin/upload", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: formData,
+  });
+
+  const data = await handleJsonResponse<{ url: string }>(res, "Failed to upload image.");
+  return data.url;
 }
 
 // --- INSTITUTIONAL STATS ---

@@ -11,6 +11,12 @@ import {
   Loader2,
   AlertCircle,
   LogOut,
+  Eye,
+  EyeOff,
+  UploadCloud,
+  Files,
+  X,
+  Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -31,6 +37,9 @@ import {
   updateAdminJournal,
   deleteAdminJournal,
   uploadLibraryDocument,
+  uploadLibraryDocuments,
+  generateAdminAbstract,
+  uploadAdminImage,
   fetchAdminStats,
   updateAdminStats,
   type InstitutionalStats,
@@ -49,6 +58,7 @@ export function AdminDashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
   const [authErrorMessage, setAuthErrorMessage] = useState<string | null>(null);
 
@@ -104,6 +114,7 @@ export function AdminDashboardPage() {
   const [newDeptName, setNewDeptName] = useState("");
   const [newDeptDesc, setNewDeptDesc] = useState("");
   const [newDeptImage, setNewDeptImage] = useState("");
+  const [isUploadingDeptImage, setIsUploadingDeptImage] = useState(false);
 
   const [newBookTitle, setNewBookTitle] = useState("");
   const [newBookAuthor, setNewBookAuthor] = useState("");
@@ -111,12 +122,40 @@ export function AdminDashboardPage() {
   const [newBookDesc, setNewBookDesc] = useState("");
   const [newBookFile, setNewBookFile] = useState<File | null>(null);
   const [bookFileInputKey, setBookFileInputKey] = useState(0);
+  const [isGeneratingBookAbstract, setIsGeneratingBookAbstract] = useState(false);
+
+  // Batch books state
+  const [isBatchAddingBooks, setIsBatchAddingBooks] = useState(false);
+  const [batchBookDeptId, setBatchBookDeptId] = useState("");
+  const [batchBookItems, setBatchBookItems] = useState<Array<{
+    file: File;
+    title: string;
+    author: string;
+    abstract: string;
+    status: 'pending' | 'uploading' | 'done' | 'error';
+  }>>([]);
+  const [isProcessingBatchBooks, setIsProcessingBatchBooks] = useState(false);
+  const [batchBookInputKey, setBatchBookInputKey] = useState(0);
 
   const [newJournalTitle, setNewJournalTitle] = useState("");
   const [newJournalDeptId, setNewJournalDeptId] = useState("");
   const [newJournalDesc, setNewJournalDesc] = useState("");
   const [newJournalFile, setNewJournalFile] = useState<File | null>(null);
   const [journalFileInputKey, setJournalFileInputKey] = useState(0);
+  const [isGeneratingJournalAbstract, setIsGeneratingJournalAbstract] = useState(false);
+
+  // Batch journals state
+  const [isBatchAddingJournals, setIsBatchAddingJournals] = useState(false);
+  const [batchJournalDeptId, setBatchJournalDeptId] = useState("");
+  const [batchJournalItems, setBatchJournalItems] = useState<Array<{
+    file: File;
+    title: string;
+    publisher: string;
+    abstract: string;
+    status: 'pending' | 'uploading' | 'done' | 'error';
+  }>>([]);
+  const [isProcessingBatchJournals, setIsProcessingBatchJournals] = useState(false);
+  const [batchJournalInputKey, setBatchJournalInputKey] = useState(0);
 
   const loadData = async () => {
     try {
@@ -205,6 +244,22 @@ export function AdminDashboardPage() {
     setNewDeptImage("");
   };
 
+  const handleDeptImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingDeptImage(true);
+    setActionError(null);
+    try {
+      const url = await uploadAdminImage(file);
+      setNewDeptImage(url);
+      flashSuccess("Department image uploaded successfully!");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to upload department image.");
+    } finally {
+      setIsUploadingDeptImage(false);
+    }
+  };
+
   const handleSaveDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;
@@ -291,21 +346,61 @@ export function AdminDashboardPage() {
     setBookFileInputKey((k) => k + 1);
   };
 
+  const handleBookFileChange = (file: File | null) => {
+    setNewBookFile(file);
+    if (file && !newBookTitle.trim()) {
+      const autoTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      setNewBookTitle(autoTitle);
+    }
+  };
+
+  const handleGenerateBookAbstract = async () => {
+    setIsGeneratingBookAbstract(true);
+    setActionError(null);
+    try {
+      const deptObj = departments.find((d) => d.id === newBookDeptId);
+      const titleToUse = newBookTitle.trim() || newBookFile?.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") || "Academic Monograph";
+      const abstract = await generateAdminAbstract({
+        title: titleToUse,
+        author: newBookAuthor.trim() || "AFIT Faculty",
+        department: deptObj?.name,
+        type: "book",
+      });
+      setNewBookDesc(abstract);
+      flashSuccess("Abstract generated with AI!");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to generate abstract.");
+    } finally {
+      setIsGeneratingBookAbstract(false);
+    }
+  };
+
   const handleSaveBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBookTitle.trim() || !newBookAuthor.trim()) return;
+
+    // Title is optional - defaults to file name if not provided
+    let effectiveTitle = newBookTitle.trim();
+    if (!effectiveTitle && newBookFile) {
+      effectiveTitle = newBookFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    }
+    if (!effectiveTitle) {
+      effectiveTitle = editingBook?.title || "Untitled Publication";
+    }
+
+    const effectiveAuthor = newBookAuthor.trim() || "AFIT Faculty";
 
     setIsSavingBook(true);
     setActionError(null);
 
     try {
-      // Only touch file_path/file_size if a new file was actually picked.
-      // On edit with no new file, leave the existing PDF on the record.
       let fileFields: { file_path: string; file_size: string } | undefined;
 
       if (newBookFile) {
         const uploaded = await uploadLibraryDocument(newBookFile);
         fileFields = { file_path: uploaded.url, file_size: uploaded.file_size };
+        if (!newBookTitle.trim() && uploaded.suggested_title) {
+          effectiveTitle = uploaded.suggested_title;
+        }
       } else if (!editingBook) {
         fileFields = {
           file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
@@ -315,15 +410,15 @@ export function AdminDashboardPage() {
 
       const basePayload: Partial<Book> = {
         department_id: newBookDeptId || departments[0]?.id || '',
-        title: newBookTitle.trim(),
-        author: newBookAuthor.trim(),
+        title: effectiveTitle,
+        author: effectiveAuthor,
         description: newBookDesc.trim() || null,
         ...(fileFields || {}),
       };
 
       if (editingBook) {
         await updateAdminBook(editingBook.id, basePayload);
-        flashSuccess(`"${newBookTitle.trim()}" updated.`);
+        flashSuccess(`"${effectiveTitle}" updated.`);
       } else {
         await createAdminBook({
           ...basePayload,
@@ -336,7 +431,7 @@ export function AdminDashboardPage() {
           status: 'published',
           uploaded_by: 'Administrator',
         });
-        flashSuccess(`"${newBookTitle.trim()}" published.`);
+        flashSuccess(`"${effectiveTitle}" published as PDF.`);
       }
 
       await loadData();
@@ -357,6 +452,78 @@ export function AdminDashboardPage() {
       flashSuccess(`"${bk.title}" deleted.`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to delete book.");
+    }
+  };
+
+  // --- BATCH BOOKS: multi-upload ---
+
+  const openBatchBookModal = () => {
+    setBatchBookDeptId(departments[0]?.id || "");
+    setBatchBookItems([]);
+    setBatchBookInputKey((k) => k + 1);
+    setIsBatchAddingBooks(true);
+  };
+
+  const closeBatchBookModal = () => {
+    setIsBatchAddingBooks(false);
+    setBatchBookItems([]);
+    setBatchBookInputKey((k) => k + 1);
+  };
+
+  const handleBatchBookFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const items = Array.from(files).map((f) => ({
+      file: f,
+      title: f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      author: "AFIT Faculty",
+      abstract: "",
+      status: 'pending' as const,
+    }));
+    setBatchBookItems(items);
+  };
+
+  const handleProcessBatchBooks = async () => {
+    if (batchBookItems.length === 0) return;
+    setIsProcessingBatchBooks(true);
+    setActionError(null);
+    const targetDeptId = batchBookDeptId || departments[0]?.id || '';
+
+    try {
+      const rawFiles = batchBookItems.map((item) => item.file);
+      const uploadedDocs = await uploadLibraryDocuments(rawFiles);
+
+      for (let i = 0; i < uploadedDocs.length; i++) {
+        const doc = uploadedDocs[i];
+        const item = batchBookItems[i];
+        const title = item.title.trim() || doc.suggested_title || doc.original_name;
+        const abstract = item.abstract.trim() || doc.abstract || "Academic research publication archived in the AFIT Institutional Repository.";
+
+        await createAdminBook({
+          department_id: targetDeptId,
+          title,
+          author: item.author.trim() || "AFIT Faculty",
+          description: abstract,
+          file_path: doc.url,
+          file_size: doc.file_size,
+          cover_image: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=800&q=80',
+          isbn: null,
+          publisher: 'AFIT Academic Press',
+          publication_year: new Date().getFullYear(),
+          edition: '1st',
+          category: 'Textbook',
+          status: 'published',
+          uploaded_by: 'Administrator',
+        });
+      }
+
+      flashSuccess(`Successfully published ${uploadedDocs.length} books as standardized PDFs!`);
+      await loadData();
+      closeBatchBookModal();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to process batch books.");
+    } finally {
+      setIsProcessingBatchBooks(false);
     }
   };
 
@@ -391,9 +558,45 @@ export function AdminDashboardPage() {
     setJournalFileInputKey((k) => k + 1);
   };
 
+  const handleJournalFileChange = (file: File | null) => {
+    setNewJournalFile(file);
+    if (file && !newJournalTitle.trim()) {
+      const autoTitle = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+      setNewJournalTitle(autoTitle);
+    }
+  };
+
+  const handleGenerateJournalAbstract = async () => {
+    setIsGeneratingJournalAbstract(true);
+    setActionError(null);
+    try {
+      const deptObj = departments.find((d) => d.id === newJournalDeptId);
+      const titleToUse = newJournalTitle.trim() || newJournalFile?.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") || "Journal Research Paper";
+      const abstract = await generateAdminAbstract({
+        title: titleToUse,
+        department: deptObj?.name,
+        type: "journal",
+      });
+      setNewJournalDesc(abstract);
+      flashSuccess("Abstract generated with AI!");
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to generate abstract.");
+    } finally {
+      setIsGeneratingJournalAbstract(false);
+    }
+  };
+
   const handleSaveJournal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newJournalTitle.trim()) return;
+
+    // Title is optional - defaults to file name if not provided
+    let effectiveTitle = newJournalTitle.trim();
+    if (!effectiveTitle && newJournalFile) {
+      effectiveTitle = newJournalFile.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    }
+    if (!effectiveTitle) {
+      effectiveTitle = editingJournal?.title || "Untitled Research Paper";
+    }
 
     setIsSavingJournal(true);
     setActionError(null);
@@ -404,6 +607,9 @@ export function AdminDashboardPage() {
       if (newJournalFile) {
         const uploaded = await uploadLibraryDocument(newJournalFile);
         fileFields = { file_path: uploaded.url, file_size: uploaded.file_size };
+        if (!newJournalTitle.trim() && uploaded.suggested_title) {
+          effectiveTitle = uploaded.suggested_title;
+        }
       } else if (!editingJournal) {
         fileFields = {
           file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
@@ -413,14 +619,14 @@ export function AdminDashboardPage() {
 
       const basePayload: Partial<Journal> = {
         department_id: newJournalDeptId || departments[0]?.id || '',
-        title: newJournalTitle.trim(),
+        title: effectiveTitle,
         description: newJournalDesc.trim() || null,
         ...(fileFields || {}),
       };
 
       if (editingJournal) {
         await updateAdminJournal(editingJournal.id, basePayload);
-        flashSuccess(`"${newJournalTitle.trim()}" updated.`);
+        flashSuccess(`"${effectiveTitle}" updated.`);
       } else {
         await createAdminJournal({
           ...basePayload,
@@ -434,7 +640,7 @@ export function AdminDashboardPage() {
           status: 'published',
           uploaded_by: 'Administrator',
         });
-        flashSuccess(`"${newJournalTitle.trim()}" published.`);
+        flashSuccess(`"${effectiveTitle}" published as PDF.`);
       }
 
       await loadData();
@@ -455,6 +661,78 @@ export function AdminDashboardPage() {
       flashSuccess(`"${jr.title}" deleted.`);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to delete journal.");
+    }
+  };
+
+  // --- BATCH JOURNALS: multi-upload ---
+
+  const openBatchJournalModal = () => {
+    setBatchJournalDeptId(departments[0]?.id || "");
+    setBatchJournalItems([]);
+    setBatchJournalInputKey((k) => k + 1);
+    setIsBatchAddingJournals(true);
+  };
+
+  const closeBatchJournalModal = () => {
+    setIsBatchAddingJournals(false);
+    setBatchJournalItems([]);
+    setBatchJournalInputKey((k) => k + 1);
+  };
+
+  const handleBatchJournalFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const items = Array.from(files).map((f) => ({
+      file: f,
+      title: f.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+      publisher: "AFIT Research",
+      abstract: "",
+      status: 'pending' as const,
+    }));
+    setBatchJournalItems(items);
+  };
+
+  const handleProcessBatchJournals = async () => {
+    if (batchJournalItems.length === 0) return;
+    setIsProcessingBatchJournals(true);
+    setActionError(null);
+    const targetDeptId = batchJournalDeptId || departments[0]?.id || '';
+
+    try {
+      const rawFiles = batchJournalItems.map((item) => item.file);
+      const uploadedDocs = await uploadLibraryDocuments(rawFiles);
+
+      for (let i = 0; i < uploadedDocs.length; i++) {
+        const doc = uploadedDocs[i];
+        const item = batchJournalItems[i];
+        const title = item.title.trim() || doc.suggested_title || doc.original_name;
+        const abstract = item.abstract.trim() || doc.abstract || "Peer-reviewed research paper cataloged in AFIT Periodicals.";
+
+        await createAdminJournal({
+          department_id: targetDeptId,
+          title,
+          description: abstract,
+          file_path: doc.url,
+          file_size: doc.file_size,
+          cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+          publisher: item.publisher.trim() || 'AFIT Research',
+          issn: '2800-1111',
+          volume: 'Vol. 6',
+          issue: 'Issue 1',
+          publication_date: new Date().toISOString().split('T')[0],
+          category: 'Journal',
+          status: 'published',
+          uploaded_by: 'Administrator',
+        });
+      }
+
+      flashSuccess(`Successfully published ${uploadedDocs.length} journal papers as standardized PDFs!`);
+      await loadData();
+      closeBatchJournalModal();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to process batch journals.");
+    } finally {
+      setIsProcessingBatchJournals(false);
     }
   };
 
@@ -490,15 +768,32 @@ export function AdminDashboardPage() {
               <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
                 Administrator Password
               </label>
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                placeholder="Enter administrator password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-hidden"
-              />
+              <div className="relative">
+                <input
+                  id="admin-password-input"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  placeholder="Enter administrator password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-muted/40 pl-4 pr-11 py-3 text-sm text-foreground focus:ring-2 focus:ring-primary outline-hidden"
+                />
+                <button
+                  id="toggle-admin-password-visibility-btn"
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground focus:outline-hidden focus:text-foreground transition-colors cursor-pointer"
+                  aria-label={showPassword ? "Hide administrator password" : "Show administrator password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff aria-hidden="true" className="size-4.5" />
+                  ) : (
+                    <Eye aria-hidden="true" className="size-4.5" />
+                  )}
+                </button>
+              </div>
               {authErrorMessage && (
                 <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive font-medium flex items-center gap-2">
                   <AlertCircle className="size-4 shrink-0" />
@@ -786,14 +1081,48 @@ export function AdminDashboardPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Background Image URL</label>
-                    <input
-                      type="text"
-                      placeholder="https://images.unsplash.com/..."
-                      value={newDeptImage}
-                      onChange={e => setNewDeptImage(e.target.value)}
-                      className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
-                    />
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Department Cover Image</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <label className="relative flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/30 px-4 py-2 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors">
+                          <Upload className="size-3.5 text-primary" />
+                          <span>{isUploadingDeptImage ? "Uploading..." : "Upload Any Image"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleDeptImageUpload}
+                            disabled={isUploadingDeptImage}
+                            className="sr-only"
+                          />
+                        </label>
+                        {isUploadingDeptImage && <Loader2 className="size-4 animate-spin text-primary" />}
+                        {newDeptImage && (
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={newDeptImage}
+                              alt="Preview"
+                              className="size-8 rounded-lg object-cover border border-border"
+                              referrerPolicy="no-referrer"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setNewDeptImage("")}
+                              className="text-muted-foreground hover:text-destructive text-xs"
+                              title="Remove image"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Or enter image URL (https://...)"
+                        value={newDeptImage}
+                        onChange={e => setNewDeptImage(e.target.value)}
+                        className="w-full rounded-xl border border-border bg-muted/40 px-3 py-1.5 text-xs text-foreground focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
                   </div>
                 </div>
                 <div>
@@ -858,36 +1187,168 @@ export function AdminDashboardPage() {
       {activeTab === 'books' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-xl font-bold font-serif text-foreground">Manage Books Collection</h2>
-            <Button className="gap-2" onClick={openCreateBook}>
-              <Plus aria-hidden="true" className="size-4" /> Upload New Book
-            </Button>
+            <div>
+              <h2 className="text-xl font-bold font-serif text-foreground">Manage Books Collection</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Upload single books or bulk upload multiple documents in any format</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" className="gap-2" onClick={openBatchBookModal}>
+                <Files aria-hidden="true" className="size-4" /> Bulk Upload Books
+              </Button>
+              <Button className="gap-2" onClick={openCreateBook}>
+                <Plus aria-hidden="true" className="size-4" /> Upload New Book
+              </Button>
+            </div>
           </div>
+
+          {/* Bulk/Batch Books Modal */}
+          {isBatchAddingBooks && (
+            <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-base font-bold font-serif text-foreground">Bulk Upload Multiple Books</h3>
+                  <p className="text-xs text-muted-foreground">Select multiple files of any format. Each will be automatically converted to an academic PDF.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeBatchBookModal}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Assign Target Department</label>
+                  <select
+                    value={batchBookDeptId}
+                    onChange={e => setBatchBookDeptId(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                  >
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Select Files (Multiple Allowed)</label>
+                  <input
+                    key={batchBookInputKey}
+                    type="file"
+                    multiple
+                    accept="*/*"
+                    onChange={handleBatchBookFilesSelected}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
+                  />
+                  <p className="mt-1 text-2xs text-muted-foreground">Accepts any format (DOCX, PDF, TXT, EPUB, etc.)</p>
+                </div>
+              </div>
+
+              {batchBookItems.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Selected Documents ({batchBookItems.length})
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                    {batchBookItems.map((item, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-border bg-muted/20 p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{item.file.name}</p>
+                          <p className="text-2xs text-muted-foreground">{(item.file.size / 1024).toFixed(0)} KB</p>
+                        </div>
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            type="text"
+                            placeholder="Title (defaults to filename)"
+                            value={item.title}
+                            onChange={(e) => {
+                              const updated = [...batchBookItems];
+                              updated[idx].title = e.target.value;
+                              setBatchBookItems(updated);
+                            }}
+                            className="w-full rounded-lg border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+                          />
+                        </div>
+                        <div className="w-full sm:w-36">
+                          <input
+                            type="text"
+                            placeholder="Author"
+                            value={item.author}
+                            onChange={(e) => {
+                              const updated = [...batchBookItems];
+                              updated[idx].author = e.target.value;
+                              setBatchBookItems(updated);
+                            }}
+                            className="w-full rounded-lg border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBatchBookItems(batchBookItems.filter((_, i) => i !== idx));
+                          }}
+                          className="text-muted-foreground hover:text-destructive text-xs p-1"
+                          title="Remove item"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="ghost" onClick={closeBatchBookModal}>Cancel</Button>
+                <Button
+                  type="button"
+                  disabled={batchBookItems.length === 0 || isProcessingBatchBooks}
+                  onClick={handleProcessBatchBooks}
+                >
+                  {isProcessingBatchBooks ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin mr-2" />
+                      Converting to PDF & Publishing ({batchBookItems.length})...
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="size-4 mr-2" />
+                      Publish {batchBookItems.length} Books as PDFs
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Add/Edit Book Modal */}
           {isAddingBook && (
             <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6">
               <h3 className="text-base font-bold font-serif text-foreground mb-4">
-                {editingBook ? `Edit "${editingBook.title}"` : "Upload Book PDF & Metadata"}
+                {editingBook ? `Edit "${editingBook.title}"` : "Upload Book Document & Metadata"}
               </h3>
               <form onSubmit={handleSaveBook} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Book Title</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Book Title <span className="font-normal lowercase text-muted-foreground">(optional — defaults to file name)</span>
+                    </label>
                     <input
                       type="text"
-                      required
-                      placeholder="e.g. Advanced AI Systems"
+                      placeholder="e.g. Advanced AI Systems (or leave blank for file name)"
                       value={newBookTitle}
                       onChange={e => setNewBookTitle(e.target.value)}
                       className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Author(s)</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Author(s) <span className="font-normal lowercase text-muted-foreground">(optional — defaults to AFIT Faculty)</span>
+                    </label>
                     <input
                       type="text"
-                      required
                       placeholder="e.g. Prof. J. Doe"
                       value={newBookAuthor}
                       onChange={e => setNewBookAuthor(e.target.value)}
@@ -909,27 +1370,47 @@ export function AdminDashboardPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">PDF File</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Document File</label>
                     <input
                       key={bookFileInputKey}
                       type="file"
-                      accept=".pdf"
-                      onChange={e => setNewBookFile(e.target.files?.[0] ?? null)}
+                      accept="*/*"
+                      onChange={e => handleBookFileChange(e.target.files?.[0] ?? null)}
                       className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
                     />
+                    <p className="mt-1 text-2xs text-muted-foreground">
+                      Accepts all file formats (DOCX, PDF, TXT, EPUB, etc.) — automatically converted to PDF when stored.
+                    </p>
                     {editingBook && !newBookFile && (
-                      <p className="mt-1 text-2xs text-muted-foreground">Current file: {editingBook.file_size || 'on record'}. Leave empty to keep it.</p>
-                    )}
-                    {!editingBook && !newBookFile && (
-                      <p className="mt-1 text-2xs text-amber-600">No file selected — a placeholder PDF will be used.</p>
+                      <p className="mt-0.5 text-2xs text-muted-foreground">Current file: {editingBook.file_size || 'on record'}. Leave empty to keep it.</p>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Description</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Description / Abstract</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateBookAbstract}
+                      disabled={isGeneratingBookAbstract}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                    >
+                      {isGeneratingBookAbstract ? (
+                        <>
+                          <Loader2 className="size-3.5 animate-spin" />
+                          <span>Generating Abstract...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-3.5" />
+                          <span>Auto-generate Abstract with AI</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea
-                    rows={2}
-                    placeholder="Book overview..."
+                    rows={3}
+                    placeholder="Book overview or auto-generated abstract..."
                     value={newBookDesc}
                     onChange={e => setNewBookDesc(e.target.value)}
                     className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
@@ -939,8 +1420,8 @@ export function AdminDashboardPage() {
                   <Button type="button" variant="ghost" onClick={closeBookModal}>Cancel</Button>
                   <Button type="submit" disabled={isSavingBook}>
                     {isSavingBook
-                      ? (newBookFile ? "Uploading & Saving..." : "Saving...")
-                      : editingBook ? "Save Changes" : "Publish Book"}
+                      ? (newBookFile ? "Converting to PDF & Saving..." : "Saving...")
+                      : editingBook ? "Save Changes" : "Publish Book as PDF"}
                   </Button>
                 </div>
               </form>
@@ -990,11 +1471,141 @@ export function AdminDashboardPage() {
       {activeTab === 'journals' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-xl font-bold font-serif text-foreground">Manage Journals & Periodicals</h2>
-            <Button className="gap-2" onClick={openCreateJournal}>
-              <Plus aria-hidden="true" className="size-4" /> Upload New Journal
-            </Button>
+            <div>
+              <h2 className="text-xl font-bold font-serif text-foreground">Manage Journals & Periodicals</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Upload single research papers or bulk upload multiple papers in any format</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" className="gap-2" onClick={openBatchJournalModal}>
+                <Files aria-hidden="true" className="size-4" /> Bulk Upload Journals
+              </Button>
+              <Button className="gap-2" onClick={openCreateJournal}>
+                <Plus aria-hidden="true" className="size-4" /> Upload New Journal
+              </Button>
+            </div>
           </div>
+
+          {/* Bulk/Batch Journals Modal */}
+          {isBatchAddingJournals && (
+            <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div>
+                  <h3 className="text-base font-bold font-serif text-foreground">Bulk Upload Multiple Journals</h3>
+                  <p className="text-xs text-muted-foreground">Select multiple research paper files of any format. Each will be automatically converted to an academic PDF.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeBatchJournalModal}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Assign Target Department</label>
+                  <select
+                    value={batchJournalDeptId}
+                    onChange={e => setBatchJournalDeptId(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
+                  >
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Select Files (Multiple Allowed)</label>
+                  <input
+                    key={batchJournalInputKey}
+                    type="file"
+                    multiple
+                    accept="*/*"
+                    onChange={handleBatchJournalFilesSelected}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
+                  />
+                  <p className="mt-1 text-2xs text-muted-foreground">Accepts any format (DOCX, PDF, TXT, EPUB, etc.)</p>
+                </div>
+              </div>
+
+              {batchJournalItems.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Selected Documents ({batchJournalItems.length})
+                  </h4>
+                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1">
+                    {batchJournalItems.map((item, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-border bg-muted/20 p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">{item.file.name}</p>
+                          <p className="text-2xs text-muted-foreground">{(item.file.size / 1024).toFixed(0)} KB</p>
+                        </div>
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            type="text"
+                            placeholder="Title (defaults to filename)"
+                            value={item.title}
+                            onChange={(e) => {
+                              const updated = [...batchJournalItems];
+                              updated[idx].title = e.target.value;
+                              setBatchJournalItems(updated);
+                            }}
+                            className="w-full rounded-lg border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+                          />
+                        </div>
+                        <div className="w-full sm:w-36">
+                          <input
+                            type="text"
+                            placeholder="Publisher"
+                            value={item.publisher}
+                            onChange={(e) => {
+                              const updated = [...batchJournalItems];
+                              updated[idx].publisher = e.target.value;
+                              setBatchJournalItems(updated);
+                            }}
+                            className="w-full rounded-lg border border-border bg-background px-2.5 py-1 text-xs text-foreground"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBatchJournalItems(batchJournalItems.filter((_, i) => i !== idx));
+                          }}
+                          className="text-muted-foreground hover:text-destructive text-xs p-1"
+                          title="Remove item"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="ghost" onClick={closeBatchJournalModal}>Cancel</Button>
+                <Button
+                  type="button"
+                  disabled={batchJournalItems.length === 0 || isProcessingBatchJournals}
+                  onClick={handleProcessBatchJournals}
+                >
+                  {isProcessingBatchJournals ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin mr-2" />
+                      Converting to PDF & Publishing ({batchJournalItems.length})...
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="size-4 mr-2" />
+                      Publish {batchJournalItems.length} Journals as PDFs
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Add/Edit Journal Modal */}
           {isAddingJournal && (
@@ -1005,11 +1616,12 @@ export function AdminDashboardPage() {
               <form onSubmit={handleSaveJournal} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Journal Title</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      Journal Title <span className="font-normal lowercase text-muted-foreground">(optional — defaults to file name)</span>
+                    </label>
                     <input
                       type="text"
-                      required
-                      placeholder="e.g. AFIT Journal of Engineering"
+                      placeholder="e.g. AFIT Journal of Engineering (or leave blank for file name)"
                       value={newJournalTitle}
                       onChange={e => setNewJournalTitle(e.target.value)}
                       className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
@@ -1029,26 +1641,46 @@ export function AdminDashboardPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">PDF File</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Document File</label>
                   <input
                     key={journalFileInputKey}
                     type="file"
-                    accept=".pdf"
-                    onChange={e => setNewJournalFile(e.target.files?.[0] ?? null)}
+                    accept="*/*"
+                    onChange={e => handleJournalFileChange(e.target.files?.[0] ?? null)}
                     className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
                   />
+                  <p className="mt-1 text-2xs text-muted-foreground">
+                    Accepts all file formats (DOCX, PDF, TXT, EPUB, etc.) — automatically converted to PDF when stored.
+                  </p>
                   {editingJournal && !newJournalFile && (
-                    <p className="mt-1 text-2xs text-muted-foreground">Current file: {editingJournal.file_size || 'on record'}. Leave empty to keep it.</p>
-                  )}
-                  {!editingJournal && !newJournalFile && (
-                    <p className="mt-1 text-2xs text-amber-600">No file selected — a placeholder PDF will be used.</p>
+                    <p className="mt-0.5 text-2xs text-muted-foreground">Current file: {editingJournal.file_size || 'on record'}. Leave empty to keep it.</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Abstract</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Abstract</label>
+                    <button
+                      type="button"
+                      onClick={handleGenerateJournalAbstract}
+                      disabled={isGeneratingJournalAbstract}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+                    >
+                      {isGeneratingJournalAbstract ? (
+                        <>
+                          <Loader2 className="size-3.5 animate-spin" />
+                          <span>Generating Abstract...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-3.5" />
+                          <span>Auto-generate Abstract with AI</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea
-                    rows={2}
-                    placeholder="Paper abstract..."
+                    rows={3}
+                    placeholder="Paper abstract or auto-generate with AI..."
                     value={newJournalDesc}
                     onChange={e => setNewJournalDesc(e.target.value)}
                     className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary"
@@ -1058,8 +1690,8 @@ export function AdminDashboardPage() {
                   <Button type="button" variant="ghost" onClick={closeJournalModal}>Cancel</Button>
                   <Button type="submit" disabled={isSavingJournal}>
                     {isSavingJournal
-                      ? (newJournalFile ? "Uploading & Saving..." : "Saving...")
-                      : editingJournal ? "Save Changes" : "Publish Journal"}
+                      ? (newJournalFile ? "Converting to PDF & Saving..." : "Saving...")
+                      : editingJournal ? "Save Changes" : "Publish Journal as PDF"}
                   </Button>
                 </div>
               </form>

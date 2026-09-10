@@ -48,7 +48,15 @@ export function HomepageCarousel() {
 
   if (isLoading) {
     return (
-      <div className="mt-8 h-64 sm:h-80 md:h-96 w-full animate-pulse rounded-3xl bg-muted/70 border border-border" />
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-md">
+        <div className="h-72 sm:h-84 md:h-96 w-full animate-pulse bg-muted/60 flex items-end p-6 sm:p-10 md:p-12">
+          <div className="space-y-3 w-full max-w-lg">
+            <div className="h-4 w-28 rounded-full bg-muted-foreground/20" />
+            <div className="h-8 w-3/4 rounded-xl bg-muted-foreground/20" />
+            <div className="h-4 w-full rounded-md bg-muted-foreground/20" />
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -56,20 +64,20 @@ export function HomepageCarousel() {
     return null;
   }
 
-  const currentSlide = slides[currentIndex];
+  const currentSlide = slides[currentIndex] || slides[0];
 
   return (
     <section
       aria-roledescription="carousel"
       aria-label="AFIT Institutional Highlights"
-      className="relative mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-md transition-all"
+      className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-md transition-all"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onFocus={() => setIsPaused(true)}
       onBlur={() => setIsPaused(false)}
     >
       {/* Slide Image Background with Academic Gradient Overlay */}
-      <div className="relative h-72 sm:h-84 md:h-96 w-full overflow-hidden">
+      <div className="relative h-72 sm:h-84 md:h-96 w-full overflow-hidden bg-slate-950">
         {slides.map((slide, idx) => (
           <div
             key={slide.id}
@@ -82,6 +90,11 @@ export function HomepageCarousel() {
             <img
               src={slide.image_url}
               alt={slide.title}
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src =
+                  "https://images.unsplash.com/photo-1517976487502-d5966a3d92fb?auto=format&fit=crop&w=1600&q=80";
+              }}
               className="h-full w-full object-cover object-center"
               loading={idx === 0 ? "eager" : "lazy"}
             />

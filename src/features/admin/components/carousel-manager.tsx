@@ -11,7 +11,9 @@ import {
   AlertCircle,
   ExternalLink,
   Layers,
-  Sparkles
+  Sparkles,
+  ImageIcon,
+  X
 } from "lucide-react";
 import {
   getAllCarouselSlidesAdmin,
@@ -91,9 +93,9 @@ export function CarouselManager() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMessage("Image file exceeds 5MB size limit.");
+    // Validate size (max 20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      setErrorMessage("Image file exceeds 20MB size limit.");
       return;
     }
 
@@ -247,6 +249,7 @@ export function CarouselManager() {
                   <img
                     src={slide.image_url}
                     alt={slide.title}
+                    referrerPolicy="no-referrer"
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
@@ -389,66 +392,97 @@ export function CarouselManager() {
                 />
               </div>
 
-              {/* Image selection and upload */}
-              <div className="space-y-2">
+              {/* Image selection and upload (Direct upload of any format) */}
+              <div className="space-y-3">
                 <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Slide Image *
+                  Slide Image Cover *
                 </label>
-                <div className="flex flex-col sm:flex-row gap-3 items-start">
+
+                {/* Direct Upload Zone */}
+                <div className="rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 p-4 transition-colors">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                        <ImageIcon aria-hidden="true" className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">Upload cover image from your device</p>
+                        <p className="text-2xs text-muted-foreground">Accepts any format (PNG, JPG, WebP, GIF, SVG, BMP, AVIF, etc. up to 20MB)</p>
+                      </div>
+                    </div>
+                    <label className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-4 py-2.5 text-xs font-semibold text-primary-foreground cursor-pointer shrink-0 transition-colors shadow-xs">
+                      <Upload aria-hidden="true" className="size-4" />
+                      <span>{isUploading ? "Uploading..." : "Select Image File"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        disabled={isUploading}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Active Preview */}
+                  {imageUrl && (
+                    <div className="relative mt-3 h-40 w-full rounded-xl overflow-hidden border border-border bg-black/40 group">
+                      <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-3">
+                        <span className="text-2xs font-medium text-white/90 truncate max-w-xs">{imageUrl}</span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setImageUrl("")}
+                          className="size-7 p-0"
+                          title="Remove image"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Optional URL input / presets for flexibility */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-2xs text-muted-foreground">
+                    <span>Or enter an external image URL:</span>
+                    <div className="flex items-center gap-1.5">
+                      <span>Presets:</span>
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl("https://images.unsplash.com/photo-1517976487502-d5966a3d92fb?auto=format&fit=crop&w=1600&q=80")}
+                        className="underline hover:text-primary"
+                      >
+                        Aerospace
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl("https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1600&q=80")}
+                        className="underline hover:text-primary"
+                      >
+                        AI
+                      </button>
+                      <span>•</span>
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl("https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80")}
+                        className="underline hover:text-primary"
+                      >
+                        Defense
+                      </button>
+                    </div>
+                  </div>
                   <input
-                    type="url"
-                    required
+                    type="text"
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://... or upload below"
-                    className="flex-1 w-full rounded-xl border border-border bg-muted/40 px-4 py-2.5 text-sm text-foreground focus:ring-2 focus:ring-primary outline-hidden"
+                    placeholder="https://..."
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3.5 py-2 text-xs text-foreground focus:ring-2 focus:ring-primary outline-hidden"
                   />
-                  <label className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-muted hover:bg-muted/80 px-4 py-2.5 text-xs font-semibold text-foreground cursor-pointer shrink-0">
-                    <Upload aria-hidden="true" className="size-4" />
-                    <span>{isUploading ? "Uploading..." : "Upload File"}</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/avif"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                      disabled={isUploading}
-                    />
-                  </label>
                 </div>
-
-                {/* Preset image selector for convenience */}
-                <div className="flex items-center gap-2 pt-1 text-2xs text-muted-foreground">
-                  <span>Quick Presets:</span>
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("https://images.unsplash.com/photo-1517976487502-d5966a3d92fb?auto=format&fit=crop&w=1600&q=80")}
-                    className="underline hover:text-primary"
-                  >
-                    Aerospace
-                  </button>
-                  <span>•</span>
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=1600&q=80")}
-                    className="underline hover:text-primary"
-                  >
-                    AI Robotics
-                  </button>
-                  <span>•</span>
-                  <button
-                    type="button"
-                    onClick={() => setImageUrl("https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80")}
-                    className="underline hover:text-primary"
-                  >
-                    Defense Systems
-                  </button>
-                </div>
-
-                {imageUrl && (
-                  <div className="relative mt-2 h-36 w-full rounded-xl overflow-hidden border border-border bg-muted">
-                    <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
-                  </div>
-                )}
               </div>
 
               {/* Call to action controls */}
@@ -535,6 +569,7 @@ export function CarouselManager() {
               <img
                 src={previewSlide.image_url}
                 alt={previewSlide.title}
+                referrerPolicy="no-referrer"
                 className="h-full w-full object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/30" />

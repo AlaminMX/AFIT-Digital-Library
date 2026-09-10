@@ -1,16 +1,37 @@
+import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Shield, Wifi, WifiOff } from "lucide-react";
 
 import afitCrest from "@/assets/afit-logo.png";
 import { cn } from "@/shared/lib/utils";
+import { ScrollToTop } from "@/shared/components/scroll-to-top";
 
 export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const isOfflineMode = location.pathname.startsWith("/offline");
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Trigger a brief top-loading progress indicator on route transitions
+  useEffect(() => {
+    setIsNavigating(true);
+    const timer = setTimeout(() => {
+      setIsNavigating(false);
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [location.pathname, location.search]);
 
   return (
     <div className="flex min-h-svh flex-col bg-background text-foreground">
+      <ScrollToTop />
+      
+      {/* Top Page Transition Progress Bar */}
+      {isNavigating && (
+        <div className="fixed top-0 left-0 right-0 z-60 h-1 overflow-hidden bg-primary/20 pointer-events-none">
+          <div className="h-full bg-sky-400 animate-indeterminate-bar shadow-sm shadow-sky-400" />
+        </div>
+      )}
+
       <header className="sticky top-0 z-50 border-b border-border/80 bg-background/95 backdrop-blur-md shadow-xs">
         <div className="mx-auto flex min-h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link className="group flex min-w-0 items-center gap-3.5 transition-opacity hover:opacity-95" to="/">

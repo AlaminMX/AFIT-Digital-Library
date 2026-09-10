@@ -136,7 +136,32 @@ const MOCK_DEPARTMENTS: Department[] = [
   },
 ];
 
-export async function getDepartments(): Promise<Department[]> {
+let cachedDepartments: Department[] | null = null;
+const cachedDeptsBySlug = new Map<string, Department>();
+
+export async function getDepartments(forceFresh = false): Promise<Department[]> {
+  if (!forceFresh && cachedDepartments && cachedDepartments.length > 0) {
+    return cachedDepartments;
+  }
+
+  // 1. Try public fast server API
+  try {
+    const res = await fetch("/api/departments");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
+        cachedDepartments = data.departments;
+        for (const dept of data.departments) {
+          cachedDeptsBySlug.set(dept.slug, dept);
+        }
+        return data.departments;
+      }
+    }
+  } catch {
+    // Continue to Supabase / local mock
+  }
+
+  // 2. Try Supabase client if configured
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -145,29 +170,51 @@ export async function getDepartments(): Promise<Department[]> {
       .eq("is_visible", true)
       .order("display_order", { ascending: true });
 
-    if (error || !data || data.length === 0) {
-      return MOCK_DEPARTMENTS;
+    if (!error && data && data.length > 0) {
+      cachedDepartments = data as Department[];
+      for (const dept of data) {
+        cachedDeptsBySlug.set(dept.slug, dept);
+      }
+      return data as Department[];
     }
-    return data as Department[];
   } catch {
-    return MOCK_DEPARTMENTS;
+    // Supabase unavailable or not configured
   }
+
+  // 3. Fallback to mock departments
+  cachedDepartments = MOCK_DEPARTMENTS;
+  for (const dept of MOCK_DEPARTMENTS) {
+    cachedDeptsBySlug.set(dept.slug, dept);
+  }
+  return MOCK_DEPARTMENTS;
 }
 
 export async function getDepartmentBySlug(slug: string): Promise<Department | null> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase
-      .from("departments")
-      .select("*")
-      .eq("slug", slug)
-      .single();
-
-    if (error || !data) {
-      return MOCK_DEPARTMENTS.find(d => d.slug === slug) || null;
-    }
-    return data as Department;
-  } catch {
-    return MOCK_DEPARTMENTS.find(d => d.slug === slug) || null;
+  if (cachedDeptsBySlug.has(slug)) {
+    return cachedDeptsBySlug.get(slug)!;
   }
+
+  // 1. Try public fast server API
+  try {
+    const res = await fetch(`/api/departments/${encodeURIComponent(slug)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.department) {
+        cachedDeptsBySlug.set(slug, data.department);
+        return data.department;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // 2. Try fetching all departments to populate cache
+  const all = await getDepartments();
+  const found = all.find((d) => d.slug === slug);
+  if (found) {
+    cachedDeptsBySlug.set(slug, found);
+    return found;
+  }
+
+  return MOCK_DEPARTMENTS.find((d) => d.slug === slug) || null;
 }

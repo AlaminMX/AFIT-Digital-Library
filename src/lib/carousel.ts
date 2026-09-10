@@ -59,16 +59,16 @@ export async function getActiveCarouselSlides(): Promise<CarouselSlide[]> {
   try {
     const res = await fetch("/api/carousel");
     if (!res.ok) {
-      return FALLBACK_SLIDES.filter(s => s.is_active);
+      return FALLBACK_SLIDES.filter((s) => s.is_active);
     }
     const data = await res.json();
-    if (data && Array.isArray(data.slides)) {
+    if (data && Array.isArray(data.slides) && data.slides.length > 0) {
       return data.slides;
     }
-    return FALLBACK_SLIDES;
+    return FALLBACK_SLIDES.filter((s) => s.is_active);
   } catch (err) {
     console.error("Failed to fetch carousel slides:", err);
-    return FALLBACK_SLIDES;
+    return FALLBACK_SLIDES.filter((s) => s.is_active);
   }
 }
 

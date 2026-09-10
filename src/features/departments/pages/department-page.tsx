@@ -13,6 +13,7 @@ import { getDepartmentBySlug, type Department } from "@/lib/supabase/queries/dep
 import { getBooksByDepartment, getJournalsByDepartment } from "@/lib/supabase/queries/library";
 import { Button, buttonVariants } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { AcademicLoader } from "@/shared/components/academic-loader";
 
 export function DepartmentPage() {
   const { slug = "" } = useParams();
@@ -41,9 +42,11 @@ export function DepartmentPage() {
 
   if (department === undefined && !hasError) {
     return (
-      <section aria-label="Loading department" className="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-24">
-        <div className="h-12 w-32 animate-pulse rounded-lg bg-muted mb-8" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted border border-border" />
+      <section aria-label="Loading department" className="mx-auto max-w-4xl px-4 py-20 sm:px-6 sm:py-28">
+        <AcademicLoader
+          title="Loading Department Repository"
+          subtitle="Gathering authorized books, research periodicals, and monographs..."
+        />
       </section>
     );
   }
@@ -53,9 +56,27 @@ export function DepartmentPage() {
 
   return (
     <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-20">
-      <div className="mb-8">
-        <Link to="/departments" className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-2")}>
-          <ArrowLeft aria-hidden="true" className="size-4" /> Back to departments
+      <div className="mb-8 flex flex-wrap items-center gap-3">
+        <Link
+          id="department-back-home-btn"
+          to="/"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "gap-2 inline-flex items-center text-xs font-semibold shadow-2xs hover:bg-muted transition-colors"
+          )}
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          <span>Back to Home</span>
+        </Link>
+        <Link
+          id="department-back-departments-btn"
+          to="/departments"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "gap-1 text-xs text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>All Departments</span>
         </Link>
       </div>
 
@@ -101,10 +122,10 @@ export function DepartmentPage() {
         {/* BOOKS TILE */}
         <Link
           to={`/departments/${department.slug}/books`}
-          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-sm transition-all hover:border-primary hover:shadow-xl min-h-[260px]"
+          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-sm transition-all hover:border-sky-400 hover:shadow-xl hover:shadow-sky-500/10 min-h-[260px]"
         >
           <div className="flex items-center justify-between">
-            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-sky-500 group-hover:text-white transition-colors">
               <Library aria-hidden="true" className="size-7" />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted px-3 py-1 rounded-md">
@@ -113,7 +134,7 @@ export function DepartmentPage() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-2xl font-bold font-serif text-foreground group-hover:text-primary transition-colors">
+            <h3 className="text-2xl font-bold font-serif text-foreground group-hover:text-sky-600 transition-colors">
               Books Collection
             </h3>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
@@ -125,10 +146,10 @@ export function DepartmentPage() {
         {/* JOURNALS TILE */}
         <Link
           to={`/departments/${department.slug}/journals`}
-          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-sm transition-all hover:border-primary hover:shadow-xl min-h-[260px]"
+          className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-sm transition-all hover:border-sky-400 hover:shadow-xl hover:shadow-sky-500/10 min-h-[260px]"
         >
           <div className="flex items-center justify-between">
-            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+            <span className="inline-flex size-14 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-sky-500 group-hover:text-white transition-colors">
               <Newspaper aria-hidden="true" className="size-7" />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted px-3 py-1 rounded-md">
@@ -137,7 +158,7 @@ export function DepartmentPage() {
           </div>
 
           <div className="mt-8">
-            <h3 className="text-2xl font-bold font-serif text-foreground group-hover:text-primary transition-colors">
+            <h3 className="text-2xl font-bold font-serif text-foreground group-hover:text-sky-600 transition-colors">
               Journals & Periodicals
             </h3>
             <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
@@ -159,9 +180,12 @@ function DepartmentMessage({ text, title }: { text: string; title: string }) {
       <p className="text-xs font-semibold uppercase tracking-wider text-primary">Department Archive</p>
       <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-foreground font-serif">{title}</h1>
       <p className="mt-4 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">{text}</p>
-      <div className="mt-8">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <Link to="/" className={cn(buttonVariants({ variant: "outline" }), "gap-2")}>
+          <ArrowLeft aria-hidden="true" className="size-4" /> Back to Home
+        </Link>
         <Link to="/departments" className={cn(buttonVariants(), "gap-2")}>
-          <ArrowLeft aria-hidden="true" className="size-4" /> Back to departments
+          Browse departments
         </Link>
       </div>
     </section>

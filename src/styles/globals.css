@@ -9,6 +9,7 @@
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-gold: var(--gold);
+  --color-department-hover: var(--department-hover);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
@@ -17,7 +18,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --font-sans: 'Mulish', sans-serif;
-  --font-serif: 'Philosopher', serif;
+  --font-serif: 'Domine', serif;
 }
 
 :root {
@@ -28,6 +29,7 @@
   --secondary: oklch(0.72 0.16 75);
   --secondary-foreground: oklch(0.18 0.05 75);
   --gold: oklch(0.72 0.16 75);
+  --department-hover: oklch(0.82 0.14 230);
   --muted: oklch(0.95 0.01 250);
   --muted-foreground: oklch(0.45 0.02 255);
   --border: oklch(0.88 0.012 250);
@@ -39,6 +41,17 @@
 
 * { border-color: var(--border); }
 html { font-family: 'Mulish', sans-serif; }
-h1, h2, h3, h4, h5, h6 { font-family: 'Philosopher', serif; }
+h1, h2, h3, h4, h5, h6 { font-family: 'Domine', serif; }
 body { margin: 0; min-width: 320px; font-family: 'Mulish', sans-serif; }
 button, a { -webkit-tap-highlight-color: transparent; }
+
+@keyframes indeterminate-bar {
+  0% { transform: translateX(-100%) scaleX(0.2); }
+  50% { transform: translateX(20%) scaleX(0.7); }
+  100% { transform: translateX(200%) scaleX(0.3); }
+}
+
+.animate-indeterminate-bar {
+  animation: indeterminate-bar 1.5s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+  transform-origin: left;
+}

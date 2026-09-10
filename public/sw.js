@@ -31,25 +31,49 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Never intercept or cache API requests, Vite dev files, or non-GET requests
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.includes('/@vite/') ||
+    url.pathname.includes('/@fs/') ||
+    url.pathname.includes('/src/') ||
+    event.request.method !== 'GET'
+  ) {
+    return;
+  }
+
+  // For page navigations: Network-first, fallback to cache if offline
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+    );
+    return;
+  }
+
+  // For static assets: Cache first, network fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((response) => {
-        // Optionally cache successful GET requests
-        if (event.request.method === 'GET' && response.status === 200) {
+        if (response.status === 200 && event.request.url.startsWith(self.location.origin)) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);
           });
         }
         return response;
-      }).catch(() => {
-        // Fallback for offline navigation if needed
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
       });
     })
   );

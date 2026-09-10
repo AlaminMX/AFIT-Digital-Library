@@ -141,7 +141,29 @@ const MOCK_JOURNALS: Journal[] = [
   }
 ];
 
-export async function getBooksByDepartment(departmentId: string): Promise<Book[]> {
+const cachedBooksByDept = new Map<string, Book[]>();
+const cachedJournalsByDept = new Map<string, Journal[]>();
+
+export async function getBooksByDepartment(departmentId: string, forceFresh = false): Promise<Book[]> {
+  if (!forceFresh && cachedBooksByDept.has(departmentId)) {
+    return cachedBooksByDept.get(departmentId)!;
+  }
+
+  // 1. Try public fast server API
+  try {
+    const res = await fetch(`/api/books?department_id=${encodeURIComponent(departmentId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.books && Array.isArray(data.books)) {
+        cachedBooksByDept.set(departmentId, data.books);
+        return data.books;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // 2. Try Supabase client if configured
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -151,16 +173,39 @@ export async function getBooksByDepartment(departmentId: string): Promise<Book[]
       .eq("status", "published")
       .order("created_at", { ascending: false });
 
-    if (error || !data) {
-      return MOCK_BOOKS.filter(b => b.department_id === departmentId);
+    if (!error && data) {
+      cachedBooksByDept.set(departmentId, data as Book[]);
+      return data as Book[];
     }
-    return data as Book[];
   } catch {
-    return MOCK_BOOKS.filter(b => b.department_id === departmentId);
+    // Supabase error/fallback
   }
+
+  const fallback = MOCK_BOOKS.filter(b => b.department_id === departmentId);
+  cachedBooksByDept.set(departmentId, fallback);
+  return fallback;
 }
 
-export async function getJournalsByDepartment(departmentId: string): Promise<Journal[]> {
+export async function getJournalsByDepartment(departmentId: string, forceFresh = false): Promise<Journal[]> {
+  if (!forceFresh && cachedJournalsByDept.has(departmentId)) {
+    return cachedJournalsByDept.get(departmentId)!;
+  }
+
+  // 1. Try public fast server API
+  try {
+    const res = await fetch(`/api/journals?department_id=${encodeURIComponent(departmentId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.journals && Array.isArray(data.journals)) {
+        cachedJournalsByDept.set(departmentId, data.journals);
+        return data.journals;
+      }
+    }
+  } catch {
+    // Continue
+  }
+
+  // 2. Try Supabase client if configured
   try {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
@@ -170,11 +215,15 @@ export async function getJournalsByDepartment(departmentId: string): Promise<Jou
       .eq("status", "published")
       .order("created_at", { ascending: false });
 
-    if (error || !data) {
-      return MOCK_JOURNALS.filter(j => j.department_id === departmentId);
+    if (!error && data) {
+      cachedJournalsByDept.set(departmentId, data as Journal[]);
+      return data as Journal[];
     }
-    return data as Journal[];
   } catch {
-    return MOCK_JOURNALS.filter(j => j.department_id === departmentId);
+    // Supabase error/fallback
   }
+
+  const fallback = MOCK_JOURNALS.filter(j => j.department_id === departmentId);
+  cachedJournalsByDept.set(departmentId, fallback);
+  return fallback;
 }
