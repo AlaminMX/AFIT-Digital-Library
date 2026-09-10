@@ -25,14 +25,21 @@ export function HomePage() {
   const [stats, setStats] = useState<Stats>(defaultStats);
 
   useEffect(() => {
-    const saved = localStorage.getItem("afit_institutional_stats");
-    if (saved) {
-      try {
-        setStats(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to parse institutional stats", e);
-      }
-    }
+    let mounted = true;
+    fetch("/api/stats")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load stats"))))
+      .then((data: Stats) => {
+        if (mounted) {
+          setStats(data);
+        }
+      })
+      .catch(() => {
+        // Keep defaultStats on failure — this is decorative hero content,
+        // not worth showing an error state for.
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (
