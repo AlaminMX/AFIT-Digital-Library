@@ -15,6 +15,9 @@ export type Department = {
   slug: string;
   description: string | null;
   display_order: number;
+  color: string | null;
+  icon: string | null;
+  background_image_url: string | null;
 };
 
 export type AcademicDirectory = {
@@ -38,7 +41,7 @@ export async function getAcademicDirectory(): Promise<AcademicDirectory> {
       .order("display_order", { ascending: true }),
     supabase
       .from("departments")
-      .select("id, faculty_id, name, slug, description, display_order")
+      .select("id, faculty_id, name, slug, description, display_order, color, icon, background_image_url")
       .eq("is_visible", true)
       .order("display_order", { ascending: true }),
   ]);
@@ -73,7 +76,7 @@ export async function getAcademicStructureCounts(): Promise<AcademicStructureCou
 export async function getDepartmentBySlug(slug: string): Promise<Department | null> {
   const { data, error } = await getSupabaseClient()
     .from("departments")
-    .select("id, faculty_id, name, slug, description, display_order")
+    .select("id, faculty_id, name, slug, description, display_order, color, icon, background_image_url")
     .eq("is_visible", true)
     .eq("slug", slug)
     .maybeSingle();
