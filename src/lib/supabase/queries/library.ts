@@ -178,25 +178,3 @@ export async function getJournalsByDepartment(departmentId: string): Promise<Jou
     return MOCK_JOURNALS.filter(j => j.department_id === departmentId);
   }
 }
-
-export async function getAllBooks(): Promise<Book[]> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.from("books").select("*").order("created_at", { ascending: false });
-    if (error || !data) return MOCK_BOOKS;
-    return data as Book[];
-  } catch {
-    return MOCK_BOOKS;
-  }
-}
-
-export async function getAllJournals(): Promise<Journal[]> {
-  try {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.from("journals").select("*").order("created_at", { ascending: false });
-    if (error || !data) return MOCK_JOURNALS;
-    return data as Journal[];
-  } catch {
-    return MOCK_JOURNALS;
-  }
-}
