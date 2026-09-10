@@ -14,11 +14,36 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { getAllDepartmentsAdmin, type Department } from "@/lib/supabase/queries/departments";
-import { getAllBooks, getAllJournals, type Book, type Journal } from "@/lib/supabase/queries/library";
+import { type Department } from "@/lib/supabase/queries/departments";
+import { type Book, type Journal } from "@/lib/supabase/queries/library";
 import { checkAdminSession, loginAdmin, logoutAdmin } from "@/lib/auth";
+import {
+  fetchAdminDepartments,
+  createAdminDepartment,
+  updateAdminDepartment,
+  deleteAdminDepartment,
+  fetchAdminBooks,
+  createAdminBook,
+  updateAdminBook,
+  deleteAdminBook,
+  fetchAdminJournals,
+  createAdminJournal,
+  updateAdminJournal,
+  deleteAdminJournal,
+  uploadLibraryDocument,
+  fetchAdminStats,
+  updateAdminStats,
+  type InstitutionalStats,
+} from "@/lib/admin-library";
 import { CarouselManager } from "../components/carousel-manager";
 import { Button } from "@/shared/ui/button";
+
+const DEFAULT_STATS: InstitutionalStats = {
+  totalStudents: '12,500+',
+  academicResources: '45,000+',
+  activeDepartments: '18+',
+  researchCitations: '98%',
+};
 
 export function AdminDashboardPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -32,29 +57,48 @@ export function AdminDashboardPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
 
-  // Institutional Stats state
-  const [statsConfig, setStatsConfig] = useState(() => {
-    const saved = localStorage.getItem('afit_institutional_stats');
-    return saved ? JSON.parse(saved) : {
-      totalStudents: '12,500+',
-      academicResources: '45,000+',
-      activeDepartments: '18+',
-      researchCitations: '98%'
-    };
-  });
+  // Shared action feedback banner (create/edit/delete/upload across all tabs)
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  const flashSuccess = (message: string) => {
+    setActionSuccess(message);
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
+
+  // Institutional Stats — real backend now (Supabase), was localStorage
+  const [statsConfig, setStatsConfig] = useState<InstitutionalStats>(DEFAULT_STATS);
+  const [isSavingStats, setIsSavingStats] = useState(false);
   const [statsSuccess, setStatsSuccess] = useState(false);
 
-  const handleSaveStats = (e: React.FormEvent) => {
+  const handleSaveStats = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('afit_institutional_stats', JSON.stringify(statsConfig));
-    setStatsSuccess(true);
-    setTimeout(() => setStatsSuccess(false), 3000);
+    setIsSavingStats(true);
+    setActionError(null);
+    try {
+      const updated = await updateAdminStats(statsConfig);
+      setStatsConfig(updated);
+      setStatsSuccess(true);
+      setTimeout(() => setStatsSuccess(false), 3000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save institutional statistics.");
+    } finally {
+      setIsSavingStats(false);
+    }
   };
 
   // Modal states for CRUD
   const [isAddingDept, setIsAddingDept] = useState(false);
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [isAddingBook, setIsAddingBook] = useState(false);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [isAddingJournal, setIsAddingJournal] = useState(false);
+  const [editingJournal, setEditingJournal] = useState<Journal | null>(null);
+
+  // Saving/submitting flags
+  const [isSavingDept, setIsSavingDept] = useState(false);
+  const [isSavingBook, setIsSavingBook] = useState(false);
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
 
   // Form states
   const [newDeptName, setNewDeptName] = useState("");
@@ -65,23 +109,33 @@ export function AdminDashboardPage() {
   const [newBookAuthor, setNewBookAuthor] = useState("");
   const [newBookDeptId, setNewBookDeptId] = useState("");
   const [newBookDesc, setNewBookDesc] = useState("");
+  const [newBookFile, setNewBookFile] = useState<File | null>(null);
+  const [bookFileInputKey, setBookFileInputKey] = useState(0);
 
   const [newJournalTitle, setNewJournalTitle] = useState("");
   const [newJournalDeptId, setNewJournalDeptId] = useState("");
   const [newJournalDesc, setNewJournalDesc] = useState("");
+  const [newJournalFile, setNewJournalFile] = useState<File | null>(null);
+  const [journalFileInputKey, setJournalFileInputKey] = useState(0);
 
   const loadData = async () => {
-    const [depts, bks, jrns] = await Promise.all([
-      getAllDepartmentsAdmin(),
-      getAllBooks(),
-      getAllJournals(),
-    ]);
-    setDepartments(depts);
-    setBooks(bks);
-    setJournals(jrns);
-    if (depts.length > 0) {
-      setNewBookDeptId(depts[0].id);
-      setNewJournalDeptId(depts[0].id);
+    try {
+      const [depts, bks, jrns, stats] = await Promise.all([
+        fetchAdminDepartments(),
+        fetchAdminBooks(),
+        fetchAdminJournals(),
+        fetchAdminStats(),
+      ]);
+      setDepartments(depts);
+      setBooks(bks);
+      setJournals(jrns);
+      setStatsConfig(stats);
+      if (depts.length > 0) {
+        setNewBookDeptId((prev) => prev || depts[0].id);
+        setNewJournalDeptId((prev) => prev || depts[0].id);
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to load CMS data.");
     }
   };
 
@@ -125,84 +179,283 @@ export function AdminDashboardPage() {
     setIsAuthenticated(false);
   };
 
-  const handleCreateDepartment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDeptName) return;
-    const slug = newDeptName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const newDept: Department = {
-      id: 'd' + Math.random().toString(36).substring(2, 11),
-      faculty_id: 'a1000000-0000-4000-8000-000000000001',
-      name: newDeptName,
-      slug,
-      description: newDeptDesc || null,
-      display_order: departments.length + 1,
-      color: '#1d4ed8',
-      icon: 'code',
-      background_image_url: newDeptImage || 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=1200&q=80',
-      is_visible: true,
-    };
-    setDepartments([newDept, ...departments]);
+  // --- DEPARTMENTS: create + edit share one form/modal ---
+
+  const openCreateDept = () => {
+    setEditingDept(null);
     setNewDeptName("");
     setNewDeptDesc("");
     setNewDeptImage("");
-    setIsAddingDept(false);
+    setIsAddingDept(true);
   };
 
-  const handleCreateBook = (e: React.FormEvent) => {
+  const openEditDept = (dept: Department) => {
+    setEditingDept(dept);
+    setNewDeptName(dept.name);
+    setNewDeptDesc(dept.description || "");
+    setNewDeptImage(dept.background_image_url || "");
+    setIsAddingDept(true);
+  };
+
+  const closeDeptModal = () => {
+    setIsAddingDept(false);
+    setEditingDept(null);
+    setNewDeptName("");
+    setNewDeptDesc("");
+    setNewDeptImage("");
+  };
+
+  const handleSaveDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newBookTitle || !newBookAuthor) return;
-    const newBk: Book = {
-      id: 'b' + Math.random().toString(36).substring(2, 11),
-      department_id: newBookDeptId || departments[0]?.id || '',
-      title: newBookTitle,
-      author: newBookAuthor,
-      description: newBookDesc || null,
-      cover_image: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=800&q=80',
-      isbn: '978-978-000-000-0',
-      publisher: 'AFIT Academic Press',
-      publication_year: 2025,
-      edition: '1st',
-      category: 'Textbook',
-      file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      file_size: '3.5 MB',
-      status: 'published',
-      uploaded_by: 'Administrator',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setBooks([newBk, ...books]);
+    if (!newDeptName.trim()) return;
+
+    setIsSavingDept(true);
+    setActionError(null);
+
+    const slug = newDeptName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    try {
+      if (editingDept) {
+        await updateAdminDepartment(editingDept.id, {
+          name: newDeptName.trim(),
+          slug,
+          description: newDeptDesc.trim() || null,
+          background_image_url: newDeptImage.trim() || null,
+        });
+        flashSuccess(`"${newDeptName.trim()}" updated.`);
+      } else {
+        await createAdminDepartment({
+          name: newDeptName.trim(),
+          slug,
+          description: newDeptDesc.trim() || null,
+          background_image_url: newDeptImage.trim() || 'https://images.unsplash.com/photo-1541185933-ef5d8ed016c2?auto=format&fit=crop&w=1200&q=80',
+          display_order: departments.length + 1,
+          color: '#1d4ed8',
+          icon: 'code',
+          is_visible: true,
+        });
+        flashSuccess(`"${newDeptName.trim()}" created.`);
+      }
+      await loadData();
+      closeDeptModal();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save department.");
+    } finally {
+      setIsSavingDept(false);
+    }
+  };
+
+  const handleDeleteDepartment = async (dept: Department) => {
+    if (!confirm(`Are you sure you want to delete "${dept.name}"? Books and journals assigned to it will become unassigned.`)) return;
+    setActionError(null);
+    try {
+      await deleteAdminDepartment(dept.id);
+      setDepartments((prev) => prev.filter((d) => d.id !== dept.id));
+      flashSuccess(`"${dept.name}" deleted.`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete department.");
+    }
+  };
+
+  // --- BOOKS: create + edit share one form/modal ---
+
+  const openCreateBook = () => {
+    setEditingBook(null);
+    setNewBookTitle("");
+    setNewBookAuthor("");
+    setNewBookDeptId(departments[0]?.id || "");
+    setNewBookDesc("");
+    setNewBookFile(null);
+    setBookFileInputKey((k) => k + 1);
+    setIsAddingBook(true);
+  };
+
+  const openEditBook = (bk: Book) => {
+    setEditingBook(bk);
+    setNewBookTitle(bk.title);
+    setNewBookAuthor(bk.author);
+    setNewBookDeptId(bk.department_id || departments[0]?.id || "");
+    setNewBookDesc(bk.description || "");
+    setNewBookFile(null);
+    setBookFileInputKey((k) => k + 1);
+    setIsAddingBook(true);
+  };
+
+  const closeBookModal = () => {
+    setIsAddingBook(false);
+    setEditingBook(null);
     setNewBookTitle("");
     setNewBookAuthor("");
     setNewBookDesc("");
-    setIsAddingBook(false);
+    setNewBookFile(null);
+    setBookFileInputKey((k) => k + 1);
   };
 
-  const handleCreateJournal = (e: React.FormEvent) => {
+  const handleSaveBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newJournalTitle) return;
-    const newJr: Journal = {
-      id: 'j' + Math.random().toString(36).substring(2, 11),
-      department_id: newJournalDeptId || departments[0]?.id || '',
-      title: newJournalTitle,
-      description: newJournalDesc || null,
-      cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-      publisher: 'AFIT Research',
-      issn: '2800-1111',
-      volume: 'Vol. 6',
-      issue: 'Issue 1',
-      publication_date: new Date().toISOString().split('T')[0],
-      category: 'Journal',
-      file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      file_size: '2.8 MB',
-      status: 'published',
-      uploaded_by: 'Administrator',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setJournals([newJr, ...journals]);
+    if (!newBookTitle.trim() || !newBookAuthor.trim()) return;
+
+    setIsSavingBook(true);
+    setActionError(null);
+
+    try {
+      // Only touch file_path/file_size if a new file was actually picked.
+      // On edit with no new file, leave the existing PDF on the record.
+      let fileFields: { file_path: string; file_size: string } | undefined;
+
+      if (newBookFile) {
+        const uploaded = await uploadLibraryDocument(newBookFile);
+        fileFields = { file_path: uploaded.url, file_size: uploaded.file_size };
+      } else if (!editingBook) {
+        fileFields = {
+          file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          file_size: '—',
+        };
+      }
+
+      const basePayload: Partial<Book> = {
+        department_id: newBookDeptId || departments[0]?.id || '',
+        title: newBookTitle.trim(),
+        author: newBookAuthor.trim(),
+        description: newBookDesc.trim() || null,
+        ...(fileFields || {}),
+      };
+
+      if (editingBook) {
+        await updateAdminBook(editingBook.id, basePayload);
+        flashSuccess(`"${newBookTitle.trim()}" updated.`);
+      } else {
+        await createAdminBook({
+          ...basePayload,
+          cover_image: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=800&q=80',
+          isbn: null,
+          publisher: 'AFIT Academic Press',
+          publication_year: new Date().getFullYear(),
+          edition: '1st',
+          category: 'Textbook',
+          status: 'published',
+          uploaded_by: 'Administrator',
+        });
+        flashSuccess(`"${newBookTitle.trim()}" published.`);
+      }
+
+      await loadData();
+      closeBookModal();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save book.");
+    } finally {
+      setIsSavingBook(false);
+    }
+  };
+
+  const handleDeleteBook = async (bk: Book) => {
+    if (!confirm(`Delete book "${bk.title}"?`)) return;
+    setActionError(null);
+    try {
+      await deleteAdminBook(bk.id);
+      setBooks((prev) => prev.filter((b) => b.id !== bk.id));
+      flashSuccess(`"${bk.title}" deleted.`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete book.");
+    }
+  };
+
+  // --- JOURNALS: create + edit share one form/modal ---
+
+  const openCreateJournal = () => {
+    setEditingJournal(null);
+    setNewJournalTitle("");
+    setNewJournalDeptId(departments[0]?.id || "");
+    setNewJournalDesc("");
+    setNewJournalFile(null);
+    setJournalFileInputKey((k) => k + 1);
+    setIsAddingJournal(true);
+  };
+
+  const openEditJournal = (jr: Journal) => {
+    setEditingJournal(jr);
+    setNewJournalTitle(jr.title);
+    setNewJournalDeptId(jr.department_id || departments[0]?.id || "");
+    setNewJournalDesc(jr.description || "");
+    setNewJournalFile(null);
+    setJournalFileInputKey((k) => k + 1);
+    setIsAddingJournal(true);
+  };
+
+  const closeJournalModal = () => {
+    setIsAddingJournal(false);
+    setEditingJournal(null);
     setNewJournalTitle("");
     setNewJournalDesc("");
-    setIsAddingJournal(false);
+    setNewJournalFile(null);
+    setJournalFileInputKey((k) => k + 1);
+  };
+
+  const handleSaveJournal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newJournalTitle.trim()) return;
+
+    setIsSavingJournal(true);
+    setActionError(null);
+
+    try {
+      let fileFields: { file_path: string; file_size: string } | undefined;
+
+      if (newJournalFile) {
+        const uploaded = await uploadLibraryDocument(newJournalFile);
+        fileFields = { file_path: uploaded.url, file_size: uploaded.file_size };
+      } else if (!editingJournal) {
+        fileFields = {
+          file_path: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          file_size: '—',
+        };
+      }
+
+      const basePayload: Partial<Journal> = {
+        department_id: newJournalDeptId || departments[0]?.id || '',
+        title: newJournalTitle.trim(),
+        description: newJournalDesc.trim() || null,
+        ...(fileFields || {}),
+      };
+
+      if (editingJournal) {
+        await updateAdminJournal(editingJournal.id, basePayload);
+        flashSuccess(`"${newJournalTitle.trim()}" updated.`);
+      } else {
+        await createAdminJournal({
+          ...basePayload,
+          cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+          publisher: 'AFIT Research',
+          issn: '2800-1111',
+          volume: 'Vol. 6',
+          issue: 'Issue 1',
+          publication_date: new Date().toISOString().split('T')[0],
+          category: 'Journal',
+          status: 'published',
+          uploaded_by: 'Administrator',
+        });
+        flashSuccess(`"${newJournalTitle.trim()}" published.`);
+      }
+
+      await loadData();
+      closeJournalModal();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save journal.");
+    } finally {
+      setIsSavingJournal(false);
+    }
+  };
+
+  const handleDeleteJournal = async (jr: Journal) => {
+    if (!confirm(`Delete journal "${jr.title}"?`)) return;
+    setActionError(null);
+    try {
+      await deleteAdminJournal(jr.id);
+      setJournals((prev) => prev.filter((j) => j.id !== jr.id));
+      flashSuccess(`"${jr.title}" deleted.`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete journal.");
+    }
   };
 
   if (isCheckingSession) {
@@ -297,7 +550,7 @@ export function AdminDashboardPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-8 border-b border-border pb-4">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-border pb-4">
         <button
           type="button"
           onClick={() => setActiveTab('overview')}
@@ -343,6 +596,20 @@ export function AdminDashboardPage() {
         </button>
       </div>
 
+      {/* SHARED ACTION FEEDBACK BANNER */}
+      {actionError && (
+        <div className="mb-6 rounded-xl bg-destructive/10 border border-destructive/20 p-4 text-sm text-destructive font-medium flex items-center gap-2">
+          <AlertCircle className="size-5 shrink-0" />
+          <span>{actionError}</span>
+        </div>
+      )}
+      {actionSuccess && (
+        <div className="mb-6 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-sm text-emerald-700 flex items-center gap-2">
+          <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
+          <span>{actionSuccess}</span>
+        </div>
+      )}
+
       {/* CAROUSEL TAB */}
       {activeTab === 'carousel' && (
         <CarouselManager />
@@ -354,13 +621,13 @@ export function AdminDashboardPage() {
           <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
             <h2 className="text-xl font-bold font-serif text-foreground mb-2">Institutional Statistics Manager</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Update the key metrics displayed on the AFIT eLibrary home page hero area. Changes take effect instantly across client sessions.
+              Update the key metrics displayed on the AFIT eLibrary home page hero area. These now save to the server and are visible to every visitor, not just this browser.
             </p>
 
             {statsSuccess && (
               <div className="mb-6 rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-sm text-emerald-700 flex items-center gap-2">
                 <CheckCircle2 className="size-5 text-emerald-600 shrink-0" />
-                <span>Institutional statistics successfully updated and saved!</span>
+                <span>Institutional statistics saved and live on the homepage.</span>
               </div>
             )}
 
@@ -410,8 +677,8 @@ export function AdminDashboardPage() {
               </div>
 
               <div className="pt-4">
-                <Button type="submit" size="lg" className="w-full">
-                  Save Institutional Statistics
+                <Button type="submit" size="lg" className="w-full" disabled={isSavingStats}>
+                  {isSavingStats ? "Saving..." : "Save Institutional Statistics"}
                 </Button>
               </div>
             </form>
@@ -467,13 +734,13 @@ export function AdminDashboardPage() {
                 <Button className="justify-start gap-2" onClick={() => setActiveTab('carousel')}>
                   <Sparkles aria-hidden="true" className="size-4" /> Manage Homepage Spotlight Carousel
                 </Button>
-                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('departments'); setIsAddingDept(true); }}>
+                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('departments'); openCreateDept(); }}>
                   <Plus aria-hidden="true" className="size-4" /> Create New Department
                 </Button>
-                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('books'); setIsAddingBook(true); }}>
+                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('books'); openCreateBook(); }}>
                   <Plus aria-hidden="true" className="size-4" /> Upload New Book PDF
                 </Button>
-                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('journals'); setIsAddingJournal(true); }}>
+                <Button variant="secondary" className="justify-start gap-2" onClick={() => { setActiveTab('journals'); openCreateJournal(); }}>
                   <Plus aria-hidden="true" className="size-4" /> Upload New Journal Paper
                 </Button>
               </div>
@@ -494,16 +761,18 @@ export function AdminDashboardPage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-xl font-bold font-serif text-foreground">Manage Departments</h2>
-            <Button className="gap-2" onClick={() => setIsAddingDept(true)}>
+            <Button className="gap-2" onClick={openCreateDept}>
               <Plus aria-hidden="true" className="size-4" /> Add Department
             </Button>
           </div>
 
-          {/* Add Dept Modal */}
+          {/* Add/Edit Dept Modal */}
           {isAddingDept && (
             <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6">
-              <h3 className="text-base font-bold font-serif text-foreground mb-4">Create New Department</h3>
-              <form onSubmit={handleCreateDepartment} className="space-y-4">
+              <h3 className="text-base font-bold font-serif text-foreground mb-4">
+                {editingDept ? `Edit "${editingDept.name}"` : "Create New Department"}
+              </h3>
+              <form onSubmit={handleSaveDepartment} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Department Name</label>
@@ -538,8 +807,10 @@ export function AdminDashboardPage() {
                   />
                 </div>
                 <div className="flex justify-end gap-3">
-                  <Button type="button" variant="ghost" onClick={() => setIsAddingDept(false)}>Cancel</Button>
-                  <Button type="submit">Save Department</Button>
+                  <Button type="button" variant="ghost" onClick={closeDeptModal}>Cancel</Button>
+                  <Button type="submit" disabled={isSavingDept}>
+                    {isSavingDept ? "Saving..." : editingDept ? "Save Changes" : "Save Department"}
+                  </Button>
                 </div>
               </form>
             </div>
@@ -567,14 +838,10 @@ export function AdminDashboardPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right space-x-2">
-                        <Button variant="ghost" size="sm" onClick={() => alert(`Editing ${dept.name}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => openEditDept(dept)}>
                           <Edit className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => {
-                          if (confirm(`Are you sure you want to delete ${dept.name}?`)) {
-                            setDepartments(departments.filter(d => d.id !== dept.id));
-                          }
-                        }}>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteDepartment(dept)}>
                           <Trash2 className="size-4" />
                         </Button>
                       </td>
@@ -592,16 +859,18 @@ export function AdminDashboardPage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-xl font-bold font-serif text-foreground">Manage Books Collection</h2>
-            <Button className="gap-2" onClick={() => setIsAddingBook(true)}>
+            <Button className="gap-2" onClick={openCreateBook}>
               <Plus aria-hidden="true" className="size-4" /> Upload New Book
             </Button>
           </div>
 
-          {/* Add Book Modal */}
+          {/* Add/Edit Book Modal */}
           {isAddingBook && (
             <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6">
-              <h3 className="text-base font-bold font-serif text-foreground mb-4">Upload Book PDF & Metadata</h3>
-              <form onSubmit={handleCreateBook} className="space-y-4">
+              <h3 className="text-base font-bold font-serif text-foreground mb-4">
+                {editingBook ? `Edit "${editingBook.title}"` : "Upload Book PDF & Metadata"}
+              </h3>
+              <form onSubmit={handleSaveBook} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Book Title</label>
@@ -642,10 +911,18 @@ export function AdminDashboardPage() {
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">PDF File</label>
                     <input
+                      key={bookFileInputKey}
                       type="file"
                       accept=".pdf"
+                      onChange={e => setNewBookFile(e.target.files?.[0] ?? null)}
                       className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
                     />
+                    {editingBook && !newBookFile && (
+                      <p className="mt-1 text-2xs text-muted-foreground">Current file: {editingBook.file_size || 'on record'}. Leave empty to keep it.</p>
+                    )}
+                    {!editingBook && !newBookFile && (
+                      <p className="mt-1 text-2xs text-amber-600">No file selected — a placeholder PDF will be used.</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -659,8 +936,12 @@ export function AdminDashboardPage() {
                   />
                 </div>
                 <div className="flex justify-end gap-3">
-                  <Button type="button" variant="ghost" onClick={() => setIsAddingBook(false)}>Cancel</Button>
-                  <Button type="submit">Publish Book</Button>
+                  <Button type="button" variant="ghost" onClick={closeBookModal}>Cancel</Button>
+                  <Button type="submit" disabled={isSavingBook}>
+                    {isSavingBook
+                      ? (newBookFile ? "Uploading & Saving..." : "Saving...")
+                      : editingBook ? "Save Changes" : "Publish Book"}
+                  </Button>
                 </div>
               </form>
             </div>
@@ -688,11 +969,10 @@ export function AdminDashboardPage() {
                         <td className="p-4 font-medium text-primary">{dept?.name || 'General'}</td>
                         <td className="p-4 text-muted-foreground">{bk.publication_year || '2025'}</td>
                         <td className="p-4 text-right space-x-2">
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => {
-                            if (confirm(`Delete book "${bk.title}"?`)) {
-                              setBooks(books.filter(b => b.id !== bk.id));
-                            }
-                          }}>
+                          <Button variant="ghost" size="sm" onClick={() => openEditBook(bk)}>
+                            <Edit className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteBook(bk)}>
                             <Trash2 className="size-4" />
                           </Button>
                         </td>
@@ -711,16 +991,18 @@ export function AdminDashboardPage() {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h2 className="text-xl font-bold font-serif text-foreground">Manage Journals & Periodicals</h2>
-            <Button className="gap-2" onClick={() => setIsAddingJournal(true)}>
+            <Button className="gap-2" onClick={openCreateJournal}>
               <Plus aria-hidden="true" className="size-4" /> Upload New Journal
             </Button>
           </div>
 
-          {/* Add Journal Modal */}
+          {/* Add/Edit Journal Modal */}
           {isAddingJournal && (
             <div className="rounded-2xl border border-primary/40 bg-card p-6 shadow-md mb-6">
-              <h3 className="text-base font-bold font-serif text-foreground mb-4">Upload Journal Research Paper</h3>
-              <form onSubmit={handleCreateJournal} className="space-y-4">
+              <h3 className="text-base font-bold font-serif text-foreground mb-4">
+                {editingJournal ? `Edit "${editingJournal.title}"` : "Upload Journal Research Paper"}
+              </h3>
+              <form onSubmit={handleSaveJournal} className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Journal Title</label>
@@ -747,6 +1029,22 @@ export function AdminDashboardPage() {
                   </div>
                 </div>
                 <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">PDF File</label>
+                  <input
+                    key={journalFileInputKey}
+                    type="file"
+                    accept=".pdf"
+                    onChange={e => setNewJournalFile(e.target.files?.[0] ?? null)}
+                    className="w-full rounded-xl border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground"
+                  />
+                  {editingJournal && !newJournalFile && (
+                    <p className="mt-1 text-2xs text-muted-foreground">Current file: {editingJournal.file_size || 'on record'}. Leave empty to keep it.</p>
+                  )}
+                  {!editingJournal && !newJournalFile && (
+                    <p className="mt-1 text-2xs text-amber-600">No file selected — a placeholder PDF will be used.</p>
+                  )}
+                </div>
+                <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Abstract</label>
                   <textarea
                     rows={2}
@@ -757,8 +1055,12 @@ export function AdminDashboardPage() {
                   />
                 </div>
                 <div className="flex justify-end gap-3">
-                  <Button type="button" variant="ghost" onClick={() => setIsAddingJournal(false)}>Cancel</Button>
-                  <Button type="submit">Publish Journal</Button>
+                  <Button type="button" variant="ghost" onClick={closeJournalModal}>Cancel</Button>
+                  <Button type="submit" disabled={isSavingJournal}>
+                    {isSavingJournal
+                      ? (newJournalFile ? "Uploading & Saving..." : "Saving...")
+                      : editingJournal ? "Save Changes" : "Publish Journal"}
+                  </Button>
                 </div>
               </form>
             </div>
@@ -786,11 +1088,10 @@ export function AdminDashboardPage() {
                         <td className="p-4 font-medium text-primary">{dept?.name || 'General'}</td>
                         <td className="p-4 text-muted-foreground">{jr.volume || 'Vol. 1'}</td>
                         <td className="p-4 text-right space-x-2">
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => {
-                            if (confirm(`Delete journal "${jr.title}"?`)) {
-                              setJournals(journals.filter(j => j.id !== jr.id));
-                            }
-                          }}>
+                          <Button variant="ghost" size="sm" onClick={() => openEditJournal(jr)}>
+                            <Edit className="size-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDeleteJournal(jr)}>
                             <Trash2 className="size-4" />
                           </Button>
                         </td>
