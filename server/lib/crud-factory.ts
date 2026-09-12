@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import type { Router, Request, Response } from "express";
-import { supabaseAdmin } from "./supabase";
-import { readJsonFile, writeJsonFile } from "./storage";
-import { requireAdminAuth } from "./auth";
+import { supabaseAdmin } from "./supabase.js";
+import { readJsonFile, writeJsonFile } from "./storage.js";
+import { requireAdminAuth } from "./auth.js";
 
 // --- GENERIC ADMIN CRUD FACTORY ---
 export interface CrudOptions {
