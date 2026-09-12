@@ -1,6 +1,6 @@
 import express from "express";
-import { registerAdminCrudRoutes } from "../lib/crud-factory";
-import { DEFAULT_DEPARTMENTS, DEFAULT_BOOKS, DEFAULT_JOURNALS } from "../lib/seed-data";
+import { registerAdminCrudRoutes } from "../lib/crud-factory.js";
+import { DEFAULT_DEPARTMENTS, DEFAULT_BOOKS, DEFAULT_JOURNALS } from "../lib/seed-data.js";
 
 const router = express.Router();
 
