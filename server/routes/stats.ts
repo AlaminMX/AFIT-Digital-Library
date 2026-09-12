@@ -1,8 +1,8 @@
 import express, { type Request, type Response } from "express";
-import { supabaseAdmin } from "../lib/supabase";
-import { readJsonFile, writeJsonFile } from "../lib/storage";
-import { requireAdminAuth } from "../lib/auth";
-import { DEFAULT_STATS, type StatsResponse } from "../lib/seed-data";
+import { supabaseAdmin } from "../lib/supabase.js";
+import { readJsonFile, writeJsonFile } from "../lib/storage.js";
+import { requireAdminAuth } from "../lib/auth.js";
+import { DEFAULT_STATS, type StatsResponse } from "../lib/seed-data.js";
 
 const router = express.Router();
 
