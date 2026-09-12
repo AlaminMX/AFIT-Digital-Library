@@ -1,6 +1,6 @@
 import express, { type Request, type Response } from "express";
 import crypto from "crypto";
-import { supabaseAdmin } from "../lib/supabase";
+import { supabaseAdmin } from "../lib/supabase.js";
 import {
   SESSION_TTL_MS,
   activeSessions,
@@ -11,7 +11,7 @@ import {
   getClientIp,
   safeCompare,
   getAdminSecret,
-} from "../lib/auth";
+} from "../lib/auth.js";
 
 const router = express.Router();
 
