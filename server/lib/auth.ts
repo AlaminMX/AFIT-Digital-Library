@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import type { Request, Response, NextFunction } from "express";
-import { supabaseAdmin } from "./supabase";
+import { supabaseAdmin } from "./supabase.js";
 
 // --- AUTHENTICATION & SESSIONS ---
 export const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
