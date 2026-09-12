@@ -1,12 +1,12 @@
 import express, { type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 
-import authRoutes from "../server/routes/auth";
-import adminResourceRoutes from "../server/routes/admin-resources";
-import documentRoutes from "../server/routes/documents";
-import publicRoutes from "../server/routes/public";
-import statsRoutes from "../server/routes/stats";
-import carouselRoutes from "../server/routes/carousel";
+import authRoutes from "../server/routes/auth.js";
+import adminResourceRoutes from "../server/routes/admin-resources.js";
+import documentRoutes from "../server/routes/documents.js";
+import publicRoutes from "../server/routes/public.js";
+import statsRoutes from "../server/routes/stats.js";
+import carouselRoutes from "../server/routes/carousel.js";
 
 // --- VERCEL SERVERLESS ENTRYPOINT ---
 // This file is what actually runs on Vercel. It replaces server.ts for
