@@ -3,10 +3,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { supabaseAdmin } from "../lib/supabase";
-import { requireAdminAuth } from "../lib/auth";
-import { DATA_DIR, DOCS_UPLOADS_DIR } from "../lib/storage";
-import { convertFileToPdf, generateDocxDocument, generateAcademicAbstract } from "../document-service";
+import { supabaseAdmin } from "../lib/supabase.js";
+import { requireAdminAuth } from "../lib/auth.js";
+import { DATA_DIR, DOCS_UPLOADS_DIR } from "../lib/storage.js";
+import { convertFileToPdf, generateDocxDocument, generateAcademicAbstract } from "../document-service.js";
 
 const router = express.Router();
 
